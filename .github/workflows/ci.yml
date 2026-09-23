@@ -1,0 +1,58 @@
+name: CI & Packaging Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build, Test, and Verify Packaging
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode.app
+          swift --version
+
+      - name: Run Swift Build
+        run: swift build -c release
+
+      - name: Run Swift Test Suite
+        run: swift test -v
+
+      - name: Fetch and Verify Upstream Binaries
+        run: |
+          ./scripts/fetch-upstream-binaries.sh bin download
+          ./bin/yabai --version
+          ./bin/skhd --version
+
+      - name: Build macOS App Bundle
+        run: |
+          ./bundle.sh
+          test -d "YabaiControl.app"
+          test -f "YabaiControl.app/Contents/MacOS/YabaiControl"
+          test -f "YabaiControl.app/Contents/Resources/bin/yabai"
+          test -f "YabaiControl.app/Contents/Resources/bin/skhd"
+          ./YabaiControl.app/Contents/Resources/bin/yabai --version
+          ./YabaiControl.app/Contents/Resources/bin/skhd --version
+
+      - name: Build Distribution Packages (.pkg & .dmg)
+        run: |
+          ./package.sh
+          ls -lh dist/
+          test -f dist/YabaiControl-*.pkg
+          test -f dist/YabaiControl-*.dmg
+
+      - name: Upload Installer Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: YabaiControl-Distributables
+          path: dist/*
+          retention-days: 14

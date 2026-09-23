@@ -2,6 +2,7 @@
 .build/
 *.app
 dist/
+bin/
 *.xcodeproj
 xcuserdata/
 *.swp
