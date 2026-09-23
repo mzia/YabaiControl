@@ -471,11 +471,13 @@ struct YabaiIPCSocketTests {
         #expect(path.hasSuffix(".socket"))
     }
 
-    @Test("encodeMessage formats wire protocol with null terminators")
+    @Test("encodeMessage formats wire protocol with 4-byte uint32 length prefix and null terminators")
     func testEncodeMessage() {
         let data = YabaiIPC.encodeMessage(["query", "--spaces"])
-        // "query\0--spaces\0\0"
-        let expectedBytes: [UInt8] = Array("query".utf8) + [0] + Array("--spaces".utf8) + [0, 0]
+        // Payload: "query\0--spaces\0\0" (16 bytes)
+        // Length prefix: 16 (0x10, 0x00, 0x00, 0x00)
+        let payloadBytes: [UInt8] = Array("query".utf8) + [0] + Array("--spaces".utf8) + [0, 0]
+        let expectedBytes: [UInt8] = [16, 0, 0, 0] + payloadBytes
         #expect(Array(data) == expectedBytes)
     }
 

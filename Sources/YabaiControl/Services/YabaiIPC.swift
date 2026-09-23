@@ -18,14 +18,21 @@ public final class YabaiIPC: @unchecked Sendable {
     }
 
     /// Formats command-line arguments into yabai's wire protocol:
-    /// Each argument is null-terminated, followed by an additional terminating null byte.
+    /// 4-byte little-endian uint32 payload length prefix, followed by null-delimited arguments with a trailing null byte.
     public static func encodeMessage(_ arguments: [String]) -> Data {
-        var data = Data()
+        var payload = Data()
         for arg in arguments {
-            data.append(contentsOf: arg.utf8)
-            data.append(0)
+            payload.append(contentsOf: arg.utf8)
+            payload.append(0)
         }
-        data.append(0)
+        payload.append(0)
+
+        var length = UInt32(payload.count).littleEndian
+        var data = Data()
+        withUnsafeBytes(of: &length) { rawBytes in
+            data.append(contentsOf: rawBytes)
+        }
+        data.append(payload)
         return data
     }
 
