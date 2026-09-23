@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+PROJECT_DIR="$(pwd)"
 
 APP_NAME="YabaiControl"
 BUILD_DIR=".build/release"
@@ -26,7 +27,9 @@ chmod +x "${MACOS_DIR}/${APP_NAME}"
 YABAI_SRC=""
 SKHD_SRC=""
 
-if command -v yabai &>/dev/null; then
+if [ -f "${PROJECT_DIR}/bin/yabai" ]; then
+  YABAI_SRC="${PROJECT_DIR}/bin/yabai"
+elif command -v yabai &>/dev/null; then
   YABAI_SRC="$(command -v yabai)"
 elif [ -f "/opt/homebrew/bin/yabai" ]; then
   YABAI_SRC="/opt/homebrew/bin/yabai"
@@ -34,7 +37,9 @@ elif [ -f "/usr/local/bin/yabai" ]; then
   YABAI_SRC="/usr/local/bin/yabai"
 fi
 
-if command -v skhd &>/dev/null; then
+if [ -f "${PROJECT_DIR}/bin/skhd" ]; then
+  SKHD_SRC="${PROJECT_DIR}/bin/skhd"
+elif command -v skhd &>/dev/null; then
   SKHD_SRC="$(command -v skhd)"
 elif [ -f "/opt/homebrew/bin/skhd" ]; then
   SKHD_SRC="/opt/homebrew/bin/skhd"

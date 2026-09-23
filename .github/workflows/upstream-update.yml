@@ -1,0 +1,120 @@
+name: Upstream Dependency Check & Automated PR
+
+on:
+  schedule:
+    # Runs weekly every Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-update-upstream:
+    name: Check Upstream Releases & Run CI Verification
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode.app
+          swift --version
+
+      - name: Read Current Upstream Tracking Versions
+        id: current_versions
+        run: |
+          CURRENT_YABAI=$(python3 -c "import json; print(json.load(open('UPSTREAM_VERSIONS.json')).get('yabai', ''))")
+          CURRENT_SKHD=$(python3 -c "import json; print(json.load(open('UPSTREAM_VERSIONS.json')).get('skhd', ''))")
+          echo "current_yabai=${CURRENT_YABAI}" >> $GITHUB_OUTPUT
+          echo "current_skhd=${CURRENT_SKHD}" >> $GITHUB_OUTPUT
+          echo "Current yabai: ${CURRENT_YABAI}"
+          echo "Current skhd : ${CURRENT_SKHD}"
+
+      - name: Query Latest Upstream Releases
+        id: latest_versions
+        run: |
+          LATEST_YABAI=$(curl -sL https://api.github.com/repos/asmvik/yabai/releases/latest | grep '"tag_name":' | head -n 1 | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+          LATEST_SKHD=$(curl -sL https://api.github.com/repos/asmvik/skhd/tags | grep '"name":' | head -n 1 | sed -E 's/.*"name": *"([^"]+)".*/\1/')
+
+          if [ -z "$LATEST_YABAI" ]; then LATEST_YABAI="${{ steps.current_versions.outputs.current_yabai }}"; fi
+          if [ -z "$LATEST_SKHD" ]; then LATEST_SKHD="${{ steps.current_versions.outputs.current_skhd }}"; fi
+
+          echo "latest_yabai=${LATEST_YABAI}" >> $GITHUB_OUTPUT
+          echo "latest_skhd=${LATEST_SKHD}" >> $GITHUB_OUTPUT
+          echo "Latest yabai: ${LATEST_YABAI}"
+          echo "Latest skhd : ${LATEST_SKHD}"
+
+      - name: Determine if Update is Needed
+        id: check_diff
+        run: |
+          HAS_UPDATE="false"
+          if [ "${{ steps.current_versions.outputs.current_yabai }}" != "${{ steps.latest_versions.outputs.latest_yabai }}" ]; then
+            HAS_UPDATE="true"
+          fi
+          if [ "${{ steps.current_versions.outputs.current_skhd }}" != "${{ steps.latest_versions.outputs.latest_skhd }}" ]; then
+            HAS_UPDATE="true"
+          fi
+          echo "has_update=${HAS_UPDATE}" >> $GITHUB_OUTPUT
+          echo "Update needed: ${HAS_UPDATE}"
+
+      - name: Fetch New Binaries & Run Full CI Test Suite
+        if: steps.check_diff.outputs.has_update == 'true'
+        run: |
+          echo "==> Fetching new upstream binaries..."
+          ./scripts/fetch-upstream-binaries.sh bin download
+
+          echo "==> Running Swift build..."
+          swift build -c release
+
+          echo "==> Running Swift test suite..."
+          swift test -v
+
+          echo "==> Packaging test..."
+          ./package.sh
+
+          echo "==> Updating UPSTREAM_VERSIONS.json..."
+          python3 -c "import json; data = {'yabai': '${{ steps.latest_versions.outputs.latest_yabai }}', 'skhd': '${{ steps.latest_versions.outputs.latest_skhd }}'}; json.dump(data, open('UPSTREAM_VERSIONS.json', 'w'), indent=2)"
+
+      - name: Create Feature Branch and Pull Request
+        if: steps.check_diff.outputs.has_update == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_YABAI="${{ steps.latest_versions.outputs.latest_yabai }}"
+          NEW_SKHD="${{ steps.latest_versions.outputs.latest_skhd }}"
+          BRANCH_NAME="chore/bump-upstream-${NEW_YABAI}-${NEW_SKHD}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${BRANCH_NAME}"
+          git add UPSTREAM_VERSIONS.json
+          git commit -m "chore(deps): update upstream yabai to ${NEW_YABAI}, skhd to ${NEW_SKHD}"
+          git push -u origin "${BRANCH_NAME}"
+
+          PR_TITLE="chore(deps): bump upstream yabai to ${NEW_YABAI} and skhd to ${NEW_SKHD}"
+          PR_BODY="### Upstream Dependency Update
+
+This automated Pull Request updates the upstream dependencies of **YabaiControl**:
+
+- **yabai**: \`${{ steps.current_versions.outputs.current_yabai }}\` $\\rightarrow$ \`${NEW_YABAI}\` ([Release Notes](https://github.com/asmvik/yabai/releases/tag/${NEW_YABAI}))
+- **skhd**: \`${{ steps.current_versions.outputs.current_skhd }}\` $\\rightarrow$ \`${NEW_SKHD}\` ([Commits](https://github.com/asmvik/skhd/commits/${NEW_SKHD}))
+
+### Automated CI Verification Passed
+- [x] Downloaded and compiled upstream binaries on macOS
+- [x] Verified binary ad-hoc codesigning and \`--version\` smoke tests
+- [x] Passed all Swift unit and integration tests (\`swift test\`)
+- [x] Successfully packaged \`.pkg\` and \`.dmg\` distributables
+
+> [!IMPORTANT]
+> In accordance with project policy, this PR will not be automatically merged. Please review and provide your explicit merge command when ready."
+
+          gh pr create \
+            --base main \
+            --head "${BRANCH_NAME}" \
+            --title "${PR_TITLE}" \
+            --body "${PR_BODY}"

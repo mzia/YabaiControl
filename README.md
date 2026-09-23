@@ -87,6 +87,32 @@ YabaiControl is designed to uninstall completely and cleanly without leaving orp
 
 ---
 
+## Continuous Integration & Upstream Automation
+
+YabaiControl maintains an automated GitHub Actions CI/CD test and maintenance pipeline:
+
+- **Automated CI Testing ([`ci.yml`](file:///.github/workflows/ci.yml)):**
+  - Runs on macOS Apple Silicon runners (`macos-14`) on every push and Pull Request.
+  - Executes the Swift test suite (`swift test`) covering config serialization, parser validation, and script syntax.
+  - Verifies binary compatibility, ad-hoc codesigning, and runs `--version` smoke tests.
+  - Validates full application bundling (`YabaiControl.app`) and packaging (`dist/*.pkg`, `dist/*.dmg`).
+
+- **Automated Upstream Dependency Updater ([`upstream-update.yml`](file:///.github/workflows/upstream-update.yml)):**
+  - Runs weekly (or on manual dispatch) to check for new upstream releases of `yabai` and `skhd`.
+  - When a new version is detected, it downloads the binaries, runs the full test and packaging verification suite, and automatically opens a new **Feature Pull Request** for maintainer review.
+
+- **Manual Binary Fetcher Script:**
+  To check or download the latest upstream binaries locally at any time:
+  ```bash
+  # Check versions
+  ./scripts/fetch-upstream-binaries.sh bin check
+
+  # Download and ad-hoc sign latest binaries
+  ./scripts/fetch-upstream-binaries.sh bin download
+  ```
+
+---
+
 ## Development & Contribution Workflow
 
 This project is open-sourced on GitHub with **`main`** as the default stable branch.
