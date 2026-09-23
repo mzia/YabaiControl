@@ -150,3 +150,33 @@ struct ServiceAndScriptTests {
         }
     }
 }
+
+@Suite("Floating App Management Tests")
+@MainActor
+struct FloatingAppManagementTests {
+
+    @Test("Add and remove floating applications")
+    func testAddAndRemoveFloatingApps() {
+        let service = YabaiService.shared
+        let testApp = "TestAppUnique123"
+
+        service.addFloatingApp(testApp)
+        #expect(service.yabaiConfig.floatingApps.contains(testApp))
+
+        // Duplicate add is idempotent
+        let initialCount = service.yabaiConfig.floatingApps.count
+        service.addFloatingApp(testApp)
+        #expect(service.yabaiConfig.floatingApps.count == initialCount)
+
+        service.removeFloatingApp(testApp)
+        #expect(!service.yabaiConfig.floatingApps.contains(testApp))
+    }
+
+    @Test("Resolve application name from URL")
+    func testResolveAppName() {
+        let service = YabaiService.shared
+        let calcURL = URL(fileURLWithPath: "/System/Applications/Calculator.app")
+        let resolved = service.resolveAppName(from: calcURL)
+        #expect(resolved == "Calculator")
+    }
+}

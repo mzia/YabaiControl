@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import ApplicationServices
 import AppKit
+import UniformTypeIdentifiers
 
 @MainActor
 public class YabaiService: ObservableObject {
@@ -315,6 +316,87 @@ public class YabaiService: ObservableObject {
         try? FileManager.default.createSymbolicLink(atPath: yabaiDest, withDestinationPath: yabaiBinaryPath)
         try? FileManager.default.createSymbolicLink(atPath: skhdDest, withDestinationPath: skhdBinaryPath)
         statusMessage = "CLI tools symlinked into ~/.local/bin"
+    }
+
+    // MARK: - Floating Application Management
+
+    public func addFloatingApp(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if !yabaiConfig.floatingApps.contains(trimmed) {
+            yabaiConfig.floatingApps.append(trimmed)
+            statusMessage = "Added '\(trimmed)' to floating rules."
+        }
+    }
+
+    public func removeFloatingApp(_ name: String) {
+        yabaiConfig.floatingApps.removeAll { $0 == name }
+        statusMessage = "Removed '\(name)' from floating rules."
+    }
+
+    public func selectAppFromFinder() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let panel = NSOpenPanel()
+        panel.title = "Select Application to Float"
+        panel.message = "Choose an application that should float freely instead of autotiling."
+        panel.prompt = "Add to Rules"
+        panel.allowedContentTypes = [UTType.application, UTType.applicationBundle]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.treatsFilePackagesAsDirectories = false
+
+        let response = panel.runModal()
+        if response == .OK {
+            var addedCount = 0
+            for url in panel.urls {
+                let name = resolveAppName(from: url)
+                if !name.isEmpty && !yabaiConfig.floatingApps.contains(name) {
+                    yabaiConfig.floatingApps.append(name)
+                    addedCount += 1
+                }
+            }
+            if addedCount > 0 {
+                statusMessage = "Added \(addedCount) application\(addedCount > 1 ? "s" : "") to floating rules."
+            }
+        }
+    }
+
+    public func resolveAppName(from url: URL) -> String {
+        if let bundle = Bundle(url: url) {
+            if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !displayName.isEmpty {
+                return displayName
+            }
+            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
+                return name
+            }
+        }
+        return url.deletingPathExtension().lastPathComponent
+    }
+
+    public func appIcon(for appName: String) -> NSImage? {
+        let searchDirectories = [
+            "/Applications",
+            "/System/Applications",
+            "/System/Applications/Utilities",
+            "\(homeDir.path)/Applications"
+        ]
+
+        for dir in searchDirectories {
+            let path = "\(dir)/\(appName).app"
+            if FileManager.default.fileExists(atPath: path) {
+                return NSWorkspace.shared.icon(forFile: path)
+            }
+        }
+
+        // Check if bundle identifier lookup works
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appName) {
+            return NSWorkspace.shared.icon(forFile: appURL.path)
+        }
+
+        return nil
     }
 
     public func checkTrashStatus() {
