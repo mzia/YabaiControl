@@ -15,7 +15,7 @@ mkdir -p "${DIST_DIR}"
 
 echo "==> [2/3] Generating macOS Installer Package (.pkg)..."
 PKG_FILE="${DIST_DIR}/${APP_NAME}-${VERSION}.pkg"
-pkgbuild --install-location "/Applications/${APP_BUNDLE}" \
+pkgbuild --install-location "/Applications" \
          --component "${APP_BUNDLE}" \
          --identifier "com.mzia.${APP_NAME}" \
          --version "${VERSION}" \
