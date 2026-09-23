@@ -67,8 +67,9 @@ fi
 echo "==> [3/4] Downloading/building upstream skhd (${SKHD_VERSION})..."
 if git clone --depth 1 --branch "${SKHD_VERSION}" https://github.com/asmvik/skhd.git "${TMP_DIR}/skhd-src" 2>/dev/null || \
    git clone --depth 1 https://github.com/asmvik/skhd.git "${TMP_DIR}/skhd-src"; then
-  (cd "${TMP_DIR}/skhd-src" && make -j2 >/dev/null)
-  cp "${TMP_DIR}/skhd-src/bin/skhd" "${TARGET_DIR}/skhd"
+  clang "${TMP_DIR}/skhd-src/src/skhd.c" -std=c99 -Wall -O2 \
+    -framework Cocoa -framework Carbon -framework CoreServices \
+    -o "${TARGET_DIR}/skhd"
 else
   echo "    Notice: Source build failed, falling back to brew or system..."
   if command -v skhd &>/dev/null; then
