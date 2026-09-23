@@ -22,25 +22,41 @@ public struct MenuBarView: View {
                 }
             }
 
-            if !service.isYabaiRunning || !service.isSkhdRunning {
+            if !service.hasAccessibilityPermission {
                 HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemName: "hand.raised.fill")
                         .foregroundStyle(.orange)
                         .font(.caption)
-                    Text("Permissions required to run daemons")
+                    Text("Accessibility permission required")
                         .font(.caption2)
                         .lineLimit(1)
                     Spacer()
-                    Button("Setup") {
-                        openWindow(id: "settings")
-                        service.selectedTab = 4
-                        NSApp.activate(ignoringOtherApps: true)
+                    Button("Grant") {
+                        service.openAccessibilitySettings()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.mini)
                 }
                 .padding(6)
                 .background(Color.orange.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if !service.isYabaiRunning || !service.isSkhdRunning {
+                HStack(spacing: 6) {
+                    Image(systemName: "pause.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text("Background daemons stopped")
+                        .font(.caption2)
+                        .lineLimit(1)
+                    Spacer()
+                    Button("Start") {
+                        service.startServices()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                }
+                .padding(6)
+                .background(Color.secondary.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 

@@ -284,26 +284,62 @@ public struct SettingsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Accessibility Permissions Required", systemImage: "hand.raised.fill")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.orange)
+            if service.hasAccessibilityPermission {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
 
-                Text("Ensure 'YabaiControl', 'yabai', and 'skhd' are granted permissions in:")
-                    .font(.caption)
-                Text("System Settings > Privacy & Security > Accessibility")
-                    .font(.caption)
-                    .bold()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Accessibility Permissions Granted")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.primary)
 
-                Button("Open Accessibility Settings") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                        Text("Yabai has accessibility access to control window frames, spaces, and displays.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("Verify Again") {
+                        service.checkAccessibility()
+                    }
+                    .controlSize(.small)
                 }
-                .controlSize(.small)
+                .padding(12)
+                .background(Color.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Accessibility Permissions Required", systemImage: "hand.raised.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.orange)
+
+                    Text("Ensure 'YabaiControl', 'yabai', and 'skhd' are granted permissions in:")
+                        .font(.caption)
+                    Text("System Settings > Privacy & Security > Accessibility")
+                        .font(.caption)
+                        .bold()
+
+                    HStack(spacing: 8) {
+                        Button("Open Accessibility Settings") {
+                            service.openAccessibilitySettings()
+                        }
+                        .controlSize(.small)
+
+                        Button("Check Again") {
+                            service.checkAccessibility()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .padding(12)
-            .background(Color.orange.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             Divider()
 
