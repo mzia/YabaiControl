@@ -22,6 +22,7 @@ public class YabaiService: ObservableObject {
     // UI state
     @Published public var selectedTab: Int = 0
     @Published public var newAppName: String = ""
+    @Published public var showUninstallAlert: Bool = false
 
     private var timer: Timer?
 
@@ -76,6 +77,7 @@ public class YabaiService: ObservableObject {
             Task { @MainActor in
                 self?.checkRunningState()
                 self?.checkAccessibility()
+                self?.checkTrashStatus()
             }
         }
     }
@@ -298,6 +300,50 @@ public class YabaiService: ObservableObject {
         try? FileManager.default.createSymbolicLink(atPath: yabaiDest, withDestinationPath: yabaiBinaryPath)
         try? FileManager.default.createSymbolicLink(atPath: skhdDest, withDestinationPath: skhdBinaryPath)
         statusMessage = "CLI tools symlinked into ~/.local/bin"
+    }
+
+    public func checkTrashStatus() {
+        let bundlePath = Bundle.main.bundleURL.path
+        // If app bundle has been moved to ~/.Trash
+        if bundlePath.contains("/.Trash/") {
+            cleanupAllServices(deleteConfigs: false)
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    public func cleanupAllServices(deleteConfigs: Bool = false) {
+        stopServices()
+
+        let launchAgents = homeDir.appendingPathComponent("Library/LaunchAgents")
+        let yabaiPlist = launchAgents.appendingPathComponent("com.asmvik.yabai.plist")
+        let skhdPlist = launchAgents.appendingPathComponent("com.koekeishiya.skhd.plist")
+
+        if FileManager.default.fileExists(atPath: yabaiPlist.path) {
+            runCommand("/bin/launchctl", args: ["bootout", "gui/\(getuid())", yabaiPlist.path])
+            try? FileManager.default.removeItem(at: yabaiPlist)
+        }
+        if FileManager.default.fileExists(atPath: skhdPlist.path) {
+            runCommand("/bin/launchctl", args: ["bootout", "gui/\(getuid())", skhdPlist.path])
+            try? FileManager.default.removeItem(at: skhdPlist)
+        }
+
+        let userLocalBin = homeDir.appendingPathComponent(".local/bin")
+        try? FileManager.default.removeItem(at: userLocalBin.appendingPathComponent("yabai"))
+        try? FileManager.default.removeItem(at: userLocalBin.appendingPathComponent("skhd"))
+
+        if deleteConfigs {
+            try? FileManager.default.removeItem(at: yabaircURL)
+            try? FileManager.default.removeItem(at: skhdrcURL)
+        }
+    }
+
+    public func uninstallApp() {
+        cleanupAllServices(deleteConfigs: false)
+        NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, _ in
+            DispatchQueue.main.async {
+                NSApplication.shared.terminate(nil)
+            }
+        }
     }
 
     @discardableResult

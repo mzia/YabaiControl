@@ -28,7 +28,19 @@ public struct SettingsView: View {
                 .tag(4)
         }
         .padding(20)
-        .frame(minWidth: 580, minHeight: 440)
+        .frame(minWidth: 580, minHeight: 460)
+        .confirmationDialog(
+            "Uninstall YabaiControl?",
+            isPresented: $service.showUninstallAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Uninstall & Trash App", role: .destructive) {
+                service.uninstallApp()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will stop all running daemons, remove launch agents and CLI symlinks, and move YabaiControl to the Trash.")
+        }
     }
 
     // MARK: - Tab 1: Layout & Behavior
@@ -292,6 +304,20 @@ public struct SettingsView: View {
             .padding(12)
             .background(Color.orange.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Uninstall Application").font(.subheadline).bold()
+                Text("Stops all background daemons, removes launch agents and CLI symlinks, and moves YabaiControl to the Trash.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("Uninstall YabaiControl...", role: .destructive) {
+                    service.showUninstallAlert = true
+                }
+                .buttonStyle(.bordered)
+            }
 
             Spacer()
         }
