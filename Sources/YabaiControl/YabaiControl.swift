@@ -12,9 +12,17 @@ struct YabaiControlApp: App {
 
     var body: some Scene {
         // macOS Menu Bar Extra (MenuBar Popover)
-        MenuBarExtra("YabaiControl", systemImage: "squareshape.split.2x2") {
+        MenuBarExtra {
             MenuBarView()
                 .environmentObject(service)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: service.menuBarIcon)
+                if !service.menuBarStatusText.isEmpty {
+                    Text(service.menuBarStatusText)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                }
+            }
         }
         .menuBarExtraStyle(.window)
 

@@ -13,11 +13,16 @@ A self-contained, native macOS menu bar app and GUI for **yabai** (the tiling en
 ## Features
 
 - **100% Self-Contained:** `yabai` (v7.1.25) and `skhd` (v0.3.9) are embedded directly inside `YabaiControl.app/Contents/Resources/bin/`. No external Homebrew dependency required for end users.
+- **Interactive Space / Workspace Switcher:** Live space indicators in the menu bar popover reflecting active/visible spaces with one-click switching.
+- **Visual Quick-Snap Grid:** 6-button quick snap interface (Left Half, Right Half, Top Half, Bottom Half, Center Inset, Maximize) for immediate Magnet/Rectangle-style window positioning.
+- **Hotkey Presets (Vim / Arrows / WASD):** Quick-switch between Vim `h/j/k/l`, Arrow keys, or WASD `w/a/s/d` keybinding presets with visual shortcut customization.
+- **Workflow Profiles & Presets:** Switch instantly between preconfigured profiles: *Balanced*, *Coding & Dev*, *Meeting & Presentation*, *Ultrawide*, and *Deep Focus Stack*.
+- **Customizable Menu Bar Title & Icon:** Configurable menu bar formats (`Icon Only`, `Icon + Layout Mode`, `Icon + Active Space`, or `Icon + Layout & Space`).
+- **Scripting Addition (SA) Status & SIP Assistant:** In-app SIP check, status indicator, and copyable `sudoers` rule generator for passwordless scripting addition injection.
 - **Menu Bar Popover:** Real-time status indicators (🟢 running / 🔴 stopped) for both daemons with quick layout switching (BSP Autotile, Stack, Float).
 - **Shortcut Cheat Sheet in App:** View active key mappings directly inside the menu bar popover and configuration window.
 - **Visual Gaps & Padding Sliders:** Adjust window gaps (0–40px) and margins (0–50px) without touching shell scripts.
-- **Rule Manager:** Add or remove applications from floating rules with a single click (e.g. *1Password*, *Calculator*, *System Settings*).
-- **Shortcut Customizer:** Visual keybinding configuration that automatically writes and reloads `~/.skhdrc`.
+- **Rule Manager:** Add or remove applications from floating rules with a single click (e.g. *1Password*, *Calculator*, *System Settings*) or Finder picker.
 - **Live Sync & Persistence:** Automatically generates and updates `~/.yabairc` and `~/.skhdrc` while applying live changes via `yabai -m config` in real time.
 - **Daemon Controller & CLI Symlinker:** Start, stop, or restart daemons with one click, or symlink the bundled binaries into `~/.local/bin` for terminal use.
 

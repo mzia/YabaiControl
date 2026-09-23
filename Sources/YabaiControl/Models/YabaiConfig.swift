@@ -1,6 +1,6 @@
 import Foundation
 
-public enum YabaiLayout: String, CaseIterable, Identifiable, Codable {
+public enum YabaiLayout: String, CaseIterable, Identifiable, Codable, Sendable {
     case bsp = "bsp"
     case stack = "stack"
     case float = "float"
@@ -24,7 +24,7 @@ public enum YabaiLayout: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-public enum FocusFollowsMouseMode: String, CaseIterable, Identifiable, Codable {
+public enum FocusFollowsMouseMode: String, CaseIterable, Identifiable, Codable, Sendable {
     case off = "off"
     case autoraise = "autoraise"
     case autofocus = "autofocus"
@@ -40,7 +40,16 @@ public enum FocusFollowsMouseMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-public struct YabaiConfig: Codable, Equatable {
+public enum MenuBarDisplayStyle: String, CaseIterable, Identifiable, Codable, Sendable {
+    case iconOnly = "Icon Only"
+    case iconAndLayout = "Icon + Layout Mode"
+    case iconAndSpace = "Icon + Active Space"
+    case iconAndBoth = "Icon + Layout & Space"
+
+    public var id: String { rawValue }
+}
+
+public struct YabaiConfig: Codable, Equatable, Sendable {
     public var layout: YabaiLayout = .bsp
     public var windowGap: Int = 8
     public var topPadding: Int = 8
@@ -54,6 +63,7 @@ public struct YabaiConfig: Codable, Equatable {
     public var windowOpacity: Bool = false
     public var activeOpacity: Double = 1.0
     public var normalOpacity: Double = 0.90
+    public var menuBarDisplayStyle: MenuBarDisplayStyle = .iconAndLayout
     public var floatingApps: [String] = [
         "System Settings",
         "Calculator",

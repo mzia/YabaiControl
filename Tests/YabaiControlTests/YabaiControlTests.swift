@@ -180,3 +180,151 @@ struct FloatingAppManagementTests {
         #expect(resolved == "Calculator")
     }
 }
+
+@Suite("Power Features Suite Tests")
+@MainActor
+struct PowerFeaturesTests {
+
+    @Test("WindowSnapPosition covers all grid positions and symbols")
+    func testWindowSnapPositions() {
+        let allPositions = WindowSnapPosition.allCases
+        #expect(allPositions.count == 10)
+
+        for pos in allPositions {
+            #expect(!pos.rawValue.isEmpty)
+            #expect(!pos.gridCommand.isEmpty)
+            #expect(!pos.iconName.isEmpty)
+            #expect(pos.gridCommand.contains(":"))
+        }
+
+        #expect(WindowSnapPosition.leftHalf.gridCommand == "1:2:0:0:1:1")
+        #expect(WindowSnapPosition.rightHalf.gridCommand == "1:2:1:0:1:1")
+        #expect(WindowSnapPosition.maximize.gridCommand == "1:1:0:0:1:1")
+        #expect(WindowSnapPosition.center.gridCommand == "4:4:1:1:2:2")
+    }
+
+    @Test("WindowProfile presets validate correctly")
+    func testWindowProfilePresets() {
+        let presets = WindowProfile.presets
+        #expect(presets.count == 5)
+
+        let ids = presets.map(\.id)
+        #expect(ids.contains("balanced"))
+        #expect(ids.contains("coding"))
+        #expect(ids.contains("meeting"))
+        #expect(ids.contains("ultrawide"))
+        #expect(ids.contains("stack"))
+
+        let coding = presets.first { $0.id == "coding" }
+        #expect(coding?.layout == .bsp)
+        #expect(coding?.windowGap == 4)
+        #expect(coding?.splitRatio == 0.65)
+        #expect(coding?.focusFollowsMouse == .autoraise)
+
+        let meeting = presets.first { $0.id == "meeting" }
+        #expect(meeting?.layout == .float)
+        #expect(meeting?.windowGap == 0)
+
+        let ultrawide = presets.first { $0.id == "ultrawide" }
+        #expect(ultrawide?.layout == .bsp)
+        #expect(ultrawide?.padding == 24)
+    }
+
+    @Test("YabaiSpace and YabaiWindow JSON decoding")
+    func testSpaceAndWindowDecoding() throws {
+        let spacesJSON = """
+        [
+          {
+            "id": 1,
+            "uuid": "UUID-1",
+            "index": 1,
+            "label": "main",
+            "type": "bsp",
+            "display": 1,
+            "windows": [101, 102],
+            "has-focus": true,
+            "is-visible": true,
+            "is-native-fullscreen": false
+          },
+          {
+            "id": 2,
+            "uuid": "UUID-2",
+            "index": 2,
+            "label": null,
+            "type": "float",
+            "display": 1,
+            "windows": [],
+            "has-focus": false,
+            "is-visible": false,
+            "is-native-fullscreen": false
+          }
+        ]
+        """.data(using: .utf8)!
+
+        let decodedSpaces = try JSONDecoder().decode([YabaiSpace].self, from: spacesJSON)
+        #expect(decodedSpaces.count == 2)
+        #expect(decodedSpaces[0].index == 1)
+        #expect(decodedSpaces[0].label == "main")
+        #expect(decodedSpaces[0].hasFocus == true)
+        #expect(decodedSpaces[0].windows == [101, 102])
+        #expect(decodedSpaces[1].index == 2)
+        #expect(decodedSpaces[1].type == "float")
+        #expect(decodedSpaces[1].hasFocus == false)
+
+        let windowsJSON = """
+        [
+          {
+            "id": 101,
+            "pid": 4520,
+            "app": "Xcode",
+            "title": "YabaiControl",
+            "space": 1,
+            "has-focus": true,
+            "is-floating": false
+          }
+        ]
+        """.data(using: .utf8)!
+
+        let decodedWindows = try JSONDecoder().decode([YabaiWindow].self, from: windowsJSON)
+        #expect(decodedWindows.count == 1)
+        #expect(decodedWindows[0].app == "Xcode")
+        #expect(decodedWindows[0].hasFocus == true)
+        #expect(decodedWindows[0].isFloating == false)
+    }
+
+    @Test("MenuBarDisplayStyle formatting")
+    func testMenuBarDisplayStyle() {
+        let service = YabaiService.shared
+        service.yabaiConfig.layout = .bsp
+        service.activeSpaceIndex = 3
+
+        service.yabaiConfig.menuBarDisplayStyle = .iconOnly
+        #expect(service.menuBarStatusText.isEmpty)
+
+        service.yabaiConfig.menuBarDisplayStyle = .iconAndLayout
+        #expect(service.menuBarStatusText == "BSP")
+
+        service.yabaiConfig.menuBarDisplayStyle = .iconAndSpace
+        #expect(service.menuBarStatusText == "S3")
+
+        service.yabaiConfig.menuBarDisplayStyle = .iconAndBoth
+        #expect(service.menuBarStatusText == "BSP • S3")
+    }
+
+    @Test("Applying workflow profile updates service configuration")
+    func testApplyWorkflowProfile() {
+        let service = YabaiService.shared
+        guard let codingProfile = WindowProfile.presets.first(where: { $0.id == "coding" }) else {
+            Issue.record("Coding profile missing")
+            return
+        }
+
+        service.applyProfile(codingProfile)
+        #expect(service.yabaiConfig.layout == .bsp)
+        #expect(service.yabaiConfig.windowGap == 4)
+        #expect(service.yabaiConfig.topPadding == 4)
+        #expect(service.yabaiConfig.splitRatio == 0.65)
+        #expect(service.yabaiConfig.focusFollowsMouse == .autoraise)
+        #expect(service.activeProfileId == "coding")
+    }
+}

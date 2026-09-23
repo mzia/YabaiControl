@@ -62,6 +62,66 @@ public struct MenuBarView: View {
 
             Divider()
 
+            // Feature 1: Interactive Workspace / Space Switcher
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Workspaces")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Text("Space \(service.activeSpaceIndex)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.accentColor)
+                }
+
+                HStack(spacing: 6) {
+                    let spacesList = service.spaces.isEmpty ? (1...5).map { YabaiSpace(id: $0, index: $0, type: "bsp", hasFocus: $0 == service.activeSpaceIndex) } : service.spaces
+                    ForEach(spacesList) { space in
+                        Button {
+                            service.focusSpace(index: space.index)
+                        } label: {
+                            VStack(spacing: 1) {
+                                Text("\(space.index)")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                if space.windows.count > 0 {
+                                    Circle()
+                                        .fill(space.index == service.activeSpaceIndex ? Color.white : Color.secondary)
+                                        .frame(width: 3, height: 3)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 24)
+                            .background(space.index == service.activeSpaceIndex ? Color.accentColor : Color(nsColor: .controlBackgroundColor))
+                            .foregroundStyle(space.index == service.activeSpaceIndex ? Color.white : Color.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Feature 2: Visual Quick-Snap Grid
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Quick Snap Window")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                HStack(spacing: 6) {
+                    snapButton(position: .leftHalf)
+                    snapButton(position: .rightHalf)
+                    snapButton(position: .topHalf)
+                    snapButton(position: .bottomHalf)
+                    snapButton(position: .center)
+                    snapButton(position: .maximize)
+                }
+            }
+
+            Divider()
+
             // Quick Layout Picker
             VStack(alignment: .leading, spacing: 6) {
                 Text("Layout Mode")
@@ -85,6 +145,45 @@ public struct MenuBarView: View {
                             .background(service.yabaiConfig.layout == layout ? Color.accentColor : Color(nsColor: .controlBackgroundColor))
                             .foregroundStyle(service.yabaiConfig.layout == layout ? .white : .primary)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Feature 4: Workflow Profiles
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Workflow Profile")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Spacer()
+                }
+
+                HStack(spacing: 6) {
+                    ForEach(WindowProfile.presets.prefix(4)) { profile in
+                        Button {
+                            service.applyProfile(profile)
+                        } label: {
+                            VStack(spacing: 3) {
+                                Image(systemName: profile.icon)
+                                    .font(.system(size: 12))
+                                Text(profile.name)
+                                    .font(.system(size: 9))
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(service.activeProfileId == profile.id ? Color.accentColor.opacity(0.2) : Color(nsColor: .controlBackgroundColor))
+                            .foregroundStyle(service.activeProfileId == profile.id ? Color.accentColor : Color.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(service.activeProfileId == profile.id ? Color.accentColor : Color.clear, lineWidth: 1)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -239,5 +338,20 @@ public struct MenuBarView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    @ViewBuilder
+    private func snapButton(position: WindowSnapPosition) -> some View {
+        Button {
+            service.snapActiveWindow(to: position)
+        } label: {
+            Image(systemName: position.iconName)
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, minHeight: 26)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .buttonStyle(.plain)
+        .help("Snap window: \(position.rawValue)")
     }
 }

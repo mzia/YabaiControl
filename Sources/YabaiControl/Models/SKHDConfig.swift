@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ShortcutMapping: Identifiable, Codable, Equatable {
+public struct ShortcutMapping: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var title: String
     public var key: String
@@ -13,7 +13,7 @@ public struct ShortcutMapping: Identifiable, Codable, Equatable {
     }
 }
 
-public struct SKHDConfig: Codable, Equatable {
+public struct SKHDConfig: Codable, Equatable, Sendable {
     public var primaryModifier: String = "alt" // alt = Option
 
     public var focusLeft: String = "h"
