@@ -22,6 +22,34 @@ public struct MenuBarView: View {
                 }
             }
 
+            if service.isUpdatePendingRestart {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.accentColor)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(service.updateVersion.isEmpty ? "Update Ready" : "Update v\(service.updateVersion) Ready")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text("Restart required to apply changes.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("Restart") {
+                        service.performPendingRestart()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                }
+                .padding(8)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
             if !service.hasAccessibilityPermission {
                 HStack(spacing: 6) {
                     Image(systemName: "hand.raised.fill")

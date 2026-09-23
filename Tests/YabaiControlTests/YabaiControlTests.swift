@@ -328,3 +328,69 @@ struct PowerFeaturesTests {
         #expect(service.activeProfileId == "coding")
     }
 }
+
+@Suite("Update and Restart Management Tests")
+@MainActor
+struct UpdateAndRestartTests {
+
+    @Test("isUpdatePendingRestart evaluates correctly")
+    func testUpdatePendingRestartEvaluation() {
+        let service = YabaiService.shared
+
+        service.setUpdatePendingRestart(available: false, restartRequired: false)
+        #expect(service.isUpdatePendingRestart == false)
+
+        service.setUpdatePendingRestart(available: true, restartRequired: false)
+        #expect(service.isUpdatePendingRestart == false)
+
+        service.setUpdatePendingRestart(available: false, restartRequired: true)
+        #expect(service.isUpdatePendingRestart == false)
+
+        service.setUpdatePendingRestart(available: true, restartRequired: true, version: "1.1.0")
+        #expect(service.isUpdatePendingRestart == true)
+        #expect(service.updateVersion == "1.1.0")
+        #expect(service.updateStatusMessage.contains("1.1.0"))
+    }
+
+    @Test("toggleSimulatedUpdate toggles state cleanly")
+    func testToggleSimulatedUpdate() {
+        let service = YabaiService.shared
+
+        service.setUpdatePendingRestart(available: false, restartRequired: false)
+        #expect(service.isUpdatePendingRestart == false)
+
+        service.toggleSimulatedUpdate()
+        #expect(service.isUpdatePendingRestart == true)
+        #expect(service.updateVersion == "1.1.0")
+
+        service.toggleSimulatedUpdate()
+        #expect(service.isUpdatePendingRestart == false)
+    }
+
+    @Test("Semantic version comparison logic")
+    func testSemanticVersionComparison() {
+        let service = YabaiService.shared
+
+        #expect(service.isVersion("1.1.0", greaterThan: "1.0.0") == true)
+        #expect(service.isVersion("1.0.1", greaterThan: "1.0.0") == true)
+        #expect(service.isVersion("2.0.0", greaterThan: "1.9.9") == true)
+        #expect(service.isVersion("1.10.0", greaterThan: "1.2.0") == true)
+
+        #expect(service.isVersion("1.0.0", greaterThan: "1.0.0") == false)
+        #expect(service.isVersion("1.0.0", greaterThan: "1.1.0") == false)
+        #expect(service.isVersion("0.9.0", greaterThan: "1.0.0") == false)
+    }
+
+    @Test("performPendingRestart resets pending states")
+    func testPerformPendingRestart() {
+        let service = YabaiService.shared
+
+        service.setUpdatePendingRestart(available: true, restartRequired: true, version: "1.2.0")
+        #expect(service.isUpdatePendingRestart == true)
+
+        service.performPendingRestart()
+        #expect(service.isUpdatePendingRestart == false)
+        #expect(service.isRestartRequired == false)
+        #expect(service.isUpdateAvailable == false)
+    }
+}
