@@ -65,8 +65,8 @@ To create standalone distribution packages for macOS:
 ./package.sh
 ```
 This generates:
-* `dist/YabaiControl-1.0.0.pkg` (macOS Installer Package)
-* `dist/YabaiControl-1.0.0.dmg` (Drag-and-Drop Disk Image)
+* `dist/YabaiControl-1.1.0.pkg` (macOS Installer Package)
+* `dist/YabaiControl-1.1.0.dmg` (Drag-and-Drop Disk Image)
 
 ---
 

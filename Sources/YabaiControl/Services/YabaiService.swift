@@ -759,6 +759,10 @@ public class YabaiService: ObservableObject {
         restartServices()
     }
 
+    public var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+    }
+
     public func checkForUpdates() {
         guard !isCheckingForUpdates else { return }
         isCheckingForUpdates = true
@@ -792,7 +796,7 @@ public class YabaiService: ObservableObject {
                     return
                 }
 
-                let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let currentVersion = self.appVersion
                 let cleanTag = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
 
                 if self.isVersion(cleanTag, greaterThan: currentVersion) {

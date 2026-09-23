@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_NAME="YabaiControl"
-VERSION="1.0.0"
+VERSION="1.1.0"
 DIST_DIR="dist"
 APP_BUNDLE="${APP_NAME}.app"
 

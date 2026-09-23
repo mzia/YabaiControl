@@ -660,7 +660,7 @@ public struct SettingsView: View {
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Installed Version: 1.0.0")
+                        Text("Installed Version: \(service.appVersion)")
                             .font(.caption)
                             .foregroundStyle(.primary)
 
