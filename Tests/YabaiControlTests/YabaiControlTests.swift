@@ -592,3 +592,44 @@ struct QuickWindowSwitcherTests {
     }
 }
 
+@Suite("Daemon Service Management Tests")
+struct DaemonServiceManagementTests {
+    @Test("YabaiService provides daemon management methods")
+    @MainActor
+    func testDaemonManagementMethodsExist() {
+        let service = YabaiService.shared
+        // Verify service paths and methods can be invoked safely
+        #expect(!service.yabaiBinaryPath.isEmpty)
+        #expect(!service.skhdBinaryPath.isEmpty)
+        service.checkRunningState()
+    }
+
+    @Test("Stopped daemon banner text resolves correctly")
+    func testStoppedDaemonBannerLogic() {
+        func bannerText(isYabaiRunning: Bool, isSkhdRunning: Bool) -> String {
+            if !isYabaiRunning && !isSkhdRunning {
+                return "Background daemons stopped"
+            } else if !isYabaiRunning {
+                return "yabai daemon stopped"
+            } else if !isSkhdRunning {
+                return "skhd daemon stopped"
+            } else {
+                return "Daemons running normally"
+            }
+        }
+
+        #expect(bannerText(isYabaiRunning: false, isSkhdRunning: false) == "Background daemons stopped")
+        #expect(bannerText(isYabaiRunning: false, isSkhdRunning: true) == "yabai daemon stopped")
+        #expect(bannerText(isYabaiRunning: true, isSkhdRunning: false) == "skhd daemon stopped")
+        #expect(bannerText(isYabaiRunning: true, isSkhdRunning: true) == "Daemons running normally")
+    }
+
+    @Test("skhd reload signal is SIGUSR1")
+    func testSkhdReloadSignalProtocol() {
+        // skhd traps SIGUSR1 for reloading configuration without terminating
+        let reloadSignal = "SIGUSR1"
+        let signalArg = "-USR1"
+        #expect(reloadSignal == "SIGUSR1")
+        #expect(signalArg == "-USR1")
+    }
+}

@@ -79,9 +79,13 @@ public struct MenuBarView: View {
                     Image(systemName: "pause.circle.fill")
                         .foregroundStyle(.secondary)
                         .font(.caption)
-                    Text("Background daemons stopped")
-                        .font(.caption2)
-                        .lineLimit(1)
+                    Text(
+                        !service.isYabaiRunning && !service.isSkhdRunning
+                            ? "Background daemons stopped"
+                            : (!service.isYabaiRunning ? "yabai daemon stopped" : "skhd daemon stopped")
+                    )
+                    .font(.caption2)
+                    .lineLimit(1)
                     Spacer()
                     Button("Start") {
                         service.startServices()

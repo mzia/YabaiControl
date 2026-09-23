@@ -399,7 +399,7 @@ public class YabaiService: ObservableObject {
         runYabaiCommand(["config", "mouse_follows_focus", yabaiConfig.mouseFollowsFocus ? "on" : "off"])
 
         if isSkhdRunning {
-            runCommand("/usr/bin/killall", args: ["-HUP", "skhd"])
+            runCommand("/usr/bin/killall", args: ["-USR1", "skhd"])
         }
     }
 
@@ -426,8 +426,12 @@ public class YabaiService: ObservableObject {
             self.checkRunningState()
             if self.isYabaiRunning && self.isSkhdRunning {
                 self.statusMessage = "Daemons running normally."
-            } else {
+            } else if !self.isYabaiRunning && !self.isSkhdRunning {
                 self.statusMessage = "Permission Required: Please allow yabai & skhd in System Settings."
+            } else if !self.isYabaiRunning {
+                self.statusMessage = "yabai daemon stopped. Please check permissions."
+            } else {
+                self.statusMessage = "skhd daemon stopped. Please check permissions."
             }
         }
     }
@@ -451,9 +455,93 @@ public class YabaiService: ObservableObject {
     }
 
     public func restartServices() {
-        stopServices()
+        // Ensure config files exist
+        if !FileManager.default.fileExists(atPath: yabaircURL.path) ||
+           !FileManager.default.fileExists(atPath: skhdrcURL.path) {
+            saveAndApply()
+        }
+
+        if isYabaiInstalled {
+            if isYabaiRunning {
+                runCommand(yabaiBinaryPath, args: ["--restart-service"])
+            } else {
+                runCommand(yabaiBinaryPath, args: ["--start-service"])
+            }
+        }
+
+        if isSkhdInstalled {
+            if isSkhdRunning {
+                runCommand(skhdBinaryPath, args: ["--restart-service"])
+            } else {
+                runCommand(skhdBinaryPath, args: ["--start-service"])
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            self.checkRunningState()
+            if self.isYabaiRunning && self.isSkhdRunning {
+                self.statusMessage = "Daemons restarted normally."
+            } else {
+                self.startServices()
+            }
+        }
+    }
+
+    public func startYabai() {
+        guard isYabaiInstalled else { return }
+        runCommand(yabaiBinaryPath, args: ["--start-service"])
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.startServices()
+            self.checkRunningState()
+        }
+    }
+
+    public func restartYabai() {
+        guard isYabaiInstalled else { return }
+        if isYabaiRunning {
+            runCommand(yabaiBinaryPath, args: ["--restart-service"])
+        } else {
+            runCommand(yabaiBinaryPath, args: ["--start-service"])
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.checkRunningState()
+        }
+    }
+
+    public func stopYabai() {
+        guard isYabaiInstalled else { return }
+        runCommand(yabaiBinaryPath, args: ["--stop-service"])
+        runCommand("/usr/bin/pkill", args: ["-x", "yabai"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.checkRunningState()
+        }
+    }
+
+    public func startSkhd() {
+        guard isSkhdInstalled else { return }
+        runCommand(skhdBinaryPath, args: ["--start-service"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.checkRunningState()
+        }
+    }
+
+    public func restartSkhd() {
+        guard isSkhdInstalled else { return }
+        if isSkhdRunning {
+            runCommand(skhdBinaryPath, args: ["--restart-service"])
+        } else {
+            runCommand(skhdBinaryPath, args: ["--start-service"])
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.checkRunningState()
+        }
+    }
+
+    public func stopSkhd() {
+        guard isSkhdInstalled else { return }
+        runCommand(skhdBinaryPath, args: ["--stop-service"])
+        runCommand("/usr/bin/pkill", args: ["-x", "skhd"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.checkRunningState()
         }
     }
 
