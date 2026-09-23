@@ -68,7 +68,7 @@ public class YabaiService: ObservableObject {
         }
     }
 
-    private var timer: Timer?
+    nonisolated(unsafe) private var timer: Timer?
 
     private var homeDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -110,7 +110,7 @@ public class YabaiService: ObservableObject {
         return "/opt/homebrew/bin/skhd"
     }
 
-    private var workspaceObservers: [NSObjectProtocol] = []
+    nonisolated(unsafe) private var workspaceObservers: [NSObjectProtocol] = []
 
     private init() {
         checkInstallations()
@@ -797,7 +797,7 @@ public class YabaiService: ObservableObject {
         }
     }
 
-    isolated deinit {
+    deinit {
         timer?.invalidate()
         for obs in workspaceObservers {
             NotificationCenter.default.removeObserver(obs)
