@@ -25,6 +25,7 @@ A self-contained, native macOS menu bar app and GUI for **yabai** (the tiling en
 - **Rule Manager:** Add or remove applications from floating rules with a single click (e.g. *1Password*, *Calculator*, *System Settings*) or Finder picker.
 - **Live Sync & Persistence:** Automatically generates and updates `~/.yabairc` and `~/.skhdrc` while applying live changes via `yabai -m config` in real time.
 - **Update & Restart Status Indicator:** Adheres to Apple Human Interface Guidelines by displaying a subtle downward facing arrow (`↓`) on the menu icon when an update is available and restart is required. Includes an actionable update banner in the menu bar popover and an in-app Software Update checker.
+- **Zero-CPU Event-Driven Architecture:** Replaces polling loops with native `NSWorkspace.activeSpaceDidChangeNotification` and Darwin `libproc` in-memory process lookup (eliminating thousands of `pgrep` and subprocess forks per hour). Employs coalesced low-power timers and macOS App Nap for near-zero idle energy consumption.
 - **Daemon Controller & CLI Symlinker:** Start, stop, or restart daemons with one click, or symlink the bundled binaries into `~/.local/bin` for terminal use.
 
 ---

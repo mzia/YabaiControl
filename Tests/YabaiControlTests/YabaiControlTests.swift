@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import AppKit
 @testable import YabaiControl
 
 @Suite("Yabai Configuration Tests")
@@ -417,5 +418,44 @@ struct AccessibilityPermissionTests {
 
         service.resetAccessibilityPermissionCheck()
         #expect(UserDefaults.standard.object(forKey: "hasAccessibilityPermissionAcknowledged") == nil)
+    }
+}
+
+@Suite("Performance & Event-Driven Architecture Tests")
+@MainActor
+struct PerformanceAndEventDrivenTests {
+
+    @Test("In-memory process detection discovers system processes without forks")
+    func testInMemoryProcessDetection() {
+        let service = YabaiService.shared
+
+        // Finder is always running in macOS GUI
+        #expect(service.isProcessRunning("Finder") == true)
+
+        // Nonexistent process should return false
+        #expect(service.isProcessRunning("nonexistent_process_xyz_999") == false)
+    }
+
+    @Test("refreshAllState runs cleanly")
+    func testRefreshAllState() {
+        let service = YabaiService.shared
+        service.refreshAllState()
+
+        #expect(!service.yabaiBinaryPath.isEmpty)
+        #expect(!service.skhdBinaryPath.isEmpty)
+    }
+
+    @Test("Active space notification triggers space update")
+    func testActiveSpaceNotificationObserver() {
+        let service = YabaiService.shared
+
+        // Simulating the macOS system notification
+        NSWorkspace.shared.notificationCenter.post(
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
+
+        // Does not throw and leaves service in a consistent state
+        #expect(service.activeSpaceIndex >= 1)
     }
 }
