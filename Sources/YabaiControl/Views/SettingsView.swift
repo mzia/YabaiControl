@@ -145,37 +145,76 @@ public struct SettingsView: View {
     // MARK: - Tab 3: Floating Rules
     private var rulesTabView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Floating Applications")
-                .font(.headline)
-            Text("These apps will float freely instead of being partitioned into the tiling grid.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
             HStack {
-                TextField("Add Application Name (e.g. 1Password)", text: $service.newAppName)
-                Button("Add Rule") {
-                    let trimmed = service.newAppName.trimmingCharacters(in: .whitespaces)
-                    if !trimmed.isEmpty && !service.yabaiConfig.floatingApps.contains(trimmed) {
-                        service.yabaiConfig.floatingApps.append(trimmed)
-                        service.newAppName = ""
-                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Floating Applications")
+                        .font(.headline)
+                    Text("These apps will float freely instead of being partitioned into the tiling grid.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(service.yabaiConfig.floatingApps.count) Rules")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+            }
+
+            // Primary action: Finder OpenPanel picker
+            HStack(spacing: 10) {
+                Button {
+                    service.selectAppFromFinder()
+                } label: {
+                    Label("Select App from Finder...", systemImage: "folder.badge.plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+
+                Text("or enter manually:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextField("App name (e.g. Slack)", text: $service.newAppName)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Add") {
+                    service.addFloatingApp(service.newAppName)
+                    service.newAppName = ""
                 }
                 .disabled(service.newAppName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
 
             List {
                 ForEach(service.yabaiConfig.floatingApps, id: \.self) { app in
-                    HStack {
-                        Label(app, systemImage: "app.dashed")
+                    HStack(spacing: 8) {
+                        if let icon = service.appIcon(for: app) {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
+                        } else {
+                            Image(systemName: "app.dashed")
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(app)
+                            .font(.body)
+
                         Spacer()
+
                         Button(role: .destructive) {
-                            service.yabaiConfig.floatingApps.removeAll { $0 == app }
+                            service.removeFloatingApp(app)
                         } label: {
                             Image(systemName: "trash")
                                 .foregroundStyle(.red)
                         }
                         .buttonStyle(.plain)
                     }
+                    .padding(.vertical, 2)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
