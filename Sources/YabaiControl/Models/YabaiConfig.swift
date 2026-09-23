@@ -45,6 +45,7 @@ public enum MenuBarDisplayStyle: String, CaseIterable, Identifiable, Codable, Se
     case iconAndLayout = "Icon + Layout Mode"
     case iconAndSpace = "Icon + Active Space"
     case iconAndBoth = "Icon + Layout & Space"
+    case spacesPill = "Spaces Pill (e.g. [1] 2 3)"
 
     public var id: String { rawValue }
 }

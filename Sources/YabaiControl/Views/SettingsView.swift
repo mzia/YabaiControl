@@ -86,6 +86,21 @@ public struct SettingsView: View {
                 .pickerStyle(.radioGroup)
             }
 
+            Section(header: Text("Startup & Login Item").font(.headline)) {
+                Toggle("Launch YabaiControl at Login", isOn: Binding(
+                    get: { service.isLaunchAtLoginEnabled },
+                    set: { service.setLaunchAtLogin(enabled: $0) }
+                ))
+                Text("Automatically launches YabaiControl when you log into macOS using modern Service Management (SMAppService).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if !service.launchAtLoginStatusMessage.isEmpty {
+                    Text(service.launchAtLoginStatusMessage)
+                        .font(.caption2)
+                        .foregroundStyle(service.isLaunchAtLoginEnabled ? .green : .secondary)
+                }
+            }
+
             Spacer()
 
             saveButton

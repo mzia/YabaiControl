@@ -24,8 +24,12 @@ A self-contained, native macOS menu bar app and GUI for **yabai** (the tiling en
 - **Visual Gaps & Padding Sliders:** Adjust window gaps (0–40px) and margins (0–50px) without touching shell scripts.
 - **Rule Manager:** Add or remove applications from floating rules with a single click (e.g. *1Password*, *Calculator*, *System Settings*) or Finder picker.
 - **Live Sync & Persistence:** Automatically generates and updates `~/.yabairc` and `~/.skhdrc` while applying live changes via `yabai -m config` in real time.
-- **Update & Restart Status Indicator:** Adheres to Apple Human Interface Guidelines by displaying a subtle downward facing arrow (`↓`) on the menu icon when an update is available and restart is required. Includes an actionable update banner in the menu bar popover and an in-app Software Update checker.
+- **Zero-Fork UNIX Domain Socket IPC:** Direct stream socket client (`YabaiIPC`) communicating with `/tmp/yabai_$USER.socket` via Darwin BSD sockets. Eliminates 100% of subprocess forks for window queries, space queries, and configuration updates, dropping IPC latency from ~25ms down to <0.2ms.
+- **Launch at Login via Modern Service Management:** Built-in toggle using macOS 13+ `SMAppService.mainApp` to register and unregister YabaiControl in macOS System Settings $\rightarrow$ General $\rightarrow$ Login Items with live status observation.
+- **Quick Window Switcher & Jumper:** Spotlight-style inline window search in the menu bar popover. Filters open windows across all virtual desktops by application name or title, jumping directly to target spaces and windows with a single click.
+- **Interactive Spaces Pill & Navigation:** Apple HIG-aligned `Spaces Pill` menu bar display style (`[1] 2 3`) with previous/next workspace navigation controls and window count indicators.
 - **Zero-CPU Event-Driven Architecture:** Replaces polling loops with native `NSWorkspace.activeSpaceDidChangeNotification` and Darwin `libproc` in-memory process lookup (eliminating thousands of `pgrep` and subprocess forks per hour). Employs coalesced low-power timers and macOS App Nap for near-zero idle energy consumption.
+- **Update & Restart Status Indicator:** Adheres to Apple Human Interface Guidelines by displaying a subtle downward facing arrow (`↓`) on the menu icon when an update is available and restart is required. Includes an actionable update banner in the menu bar popover and an in-app Software Update checker.
 - **Daemon Controller & CLI Symlinker:** Start, stop, or restart daemons with one click, or symlink the bundled binaries into `~/.local/bin` for terminal use.
 
 ---

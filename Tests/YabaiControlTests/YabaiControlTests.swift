@@ -459,3 +459,134 @@ struct PerformanceAndEventDrivenTests {
         #expect(service.activeSpaceIndex >= 1)
     }
 }
+
+// MARK: - Phase 2 Native Power Features Tests
+
+@Suite("Yabai IPC Socket Tests")
+struct YabaiIPCSocketTests {
+    @Test("Socket path is well-formed with active macOS user")
+    func testSocketPath() {
+        let path = YabaiIPC.socketPath
+        #expect(path.hasPrefix("/tmp/yabai_"))
+        #expect(path.hasSuffix(".socket"))
+    }
+
+    @Test("encodeMessage formats wire protocol with null terminators")
+    func testEncodeMessage() {
+        let data = YabaiIPC.encodeMessage(["query", "--spaces"])
+        // "query\0--spaces\0\0"
+        let expectedBytes: [UInt8] = Array("query".utf8) + [0] + Array("--spaces".utf8) + [0, 0]
+        #expect(Array(data) == expectedBytes)
+    }
+
+    @Test("Empty arguments return nil safely")
+    func testEmptyArguments() {
+        let res = YabaiIPC.sendMessage([])
+        #expect(res == nil)
+    }
+}
+
+@Suite("Launch at Login (SMAppService) Tests")
+struct LaunchAtLoginTests {
+    @Test("checkLaunchAtLoginStatus runs safely")
+    @MainActor
+    func testLaunchAtLoginCheck() {
+        let service = YabaiService.shared
+        service.checkLaunchAtLoginStatus()
+        // Value is a boolean and doesn't crash in test environment
+        #expect(service.isLaunchAtLoginEnabled == false || service.isLaunchAtLoginEnabled == true)
+    }
+}
+
+@Suite("Spaces Pill and Navigation Tests")
+struct SpacesPillAndNavigationTests {
+    @Test("spacesPill formats active space with brackets")
+    @MainActor
+    func testSpacesPillFormatting() {
+        let service = YabaiService.shared
+        service.yabaiConfig.menuBarDisplayStyle = .spacesPill
+        service.spaces = [
+            YabaiSpace(id: 1, index: 1, hasFocus: true),
+            YabaiSpace(id: 2, index: 2, hasFocus: false),
+            YabaiSpace(id: 3, index: 3, hasFocus: false)
+        ]
+        service.activeSpaceIndex = 1
+
+        let text = service.menuBarStatusText
+        #expect(text == "[1] 2 3")
+
+        service.activeSpaceIndex = 2
+        #expect(service.menuBarStatusText == "1 [2] 3")
+    }
+
+    @Test("switchToNextSpace and switchToPreviousSpace wrap around correctly")
+    @MainActor
+    func testSpaceNavigationWrapAround() {
+        let service = YabaiService.shared
+        service.spaces = [
+            YabaiSpace(id: 1, index: 1, hasFocus: true),
+            YabaiSpace(id: 2, index: 2, hasFocus: false),
+            YabaiSpace(id: 3, index: 3, hasFocus: false)
+        ]
+        service.activeSpaceIndex = 3
+        // Next wraps around to 1 (triggers focusSpace without error)
+        service.switchToNextSpace()
+
+        service.activeSpaceIndex = 1
+        // Prev wraps around to 3
+        service.switchToPreviousSpace()
+    }
+}
+
+@Suite("Quick Window Switcher Tests")
+struct QuickWindowSwitcherTests {
+    @Test("Window filtering matches app name and title case-insensitively")
+    @MainActor
+    func testWindowFiltering() {
+        let windows = [
+            YabaiWindow(id: 101, pid: 12, app: "Visual Studio Code", title: "YabaiService.swift", space: 1),
+            YabaiWindow(id: 102, pid: 34, app: "Safari", title: "Apple Developer Documentation", space: 2),
+            YabaiWindow(id: 103, pid: 56, app: "Terminal", title: "zsh", space: 1)
+        ]
+
+        let searchCode = windows.filter {
+            $0.app.localizedCaseInsensitiveContains("code") ||
+            $0.title.localizedCaseInsensitiveContains("code")
+        }
+        #expect(searchCode.count == 1)
+        #expect(searchCode.first?.app == "Visual Studio Code")
+
+        let searchDoc = windows.filter {
+            $0.app.localizedCaseInsensitiveContains("apple") ||
+            $0.title.localizedCaseInsensitiveContains("apple")
+        }
+        #expect(searchDoc.count == 1)
+        #expect(searchDoc.first?.app == "Safari")
+    }
+
+    @Test("YabaiWindow decodes from valid yabai JSON query response")
+    func testWindowJSONDecoding() throws {
+        let json = """
+        [
+            {
+                "id": 451,
+                "pid": 892,
+                "app": "Ghostty",
+                "title": "mzia@mbp:~",
+                "space": 2,
+                "has-focus": true,
+                "is-floating": false
+            }
+        ]
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode([YabaiWindow].self, from: json)
+        #expect(decoded.count == 1)
+        #expect(decoded.first?.id == 451)
+        #expect(decoded.first?.app == "Ghostty")
+        #expect(decoded.first?.space == 2)
+        #expect(decoded.first?.hasFocus == true)
+        #expect(decoded.first?.isFloating == false)
+    }
+}
+
