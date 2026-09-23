@@ -1,0 +1,94 @@
+# YabaiControl
+
+A self-contained, native macOS menu bar app and GUI for **yabai** (the tiling engine) and **skhd** (the hotkey daemon), written in **Swift & SwiftUI**.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/Platform-macOS%2014%2B-lightgrey.svg)]()
+
+---
+
+## Features
+
+- **100% Self-Contained:** `yabai` (v7.1.25) and `skhd` (v0.3.9) are embedded directly inside `YabaiControl.app/Contents/Resources/bin/`. No external Homebrew dependency required for end users.
+- **Menu Bar Popover:** Real-time status indicators (🟢 running / 🔴 stopped) for both daemons with quick layout switching (BSP Autotile, Stack, Float).
+- **Shortcut Cheat Sheet in App:** View active key mappings directly inside the menu bar popover and configuration window.
+- **Visual Gaps & Padding Sliders:** Adjust window gaps (0–40px) and margins (0–50px) without touching shell scripts.
+- **Rule Manager:** Add or remove applications from floating rules with a single click (e.g. *1Password*, *Calculator*, *System Settings*).
+- **Shortcut Customizer:** Visual keybinding configuration that automatically writes and reloads `~/.skhdrc`.
+- **Live Sync & Persistence:** Automatically generates and updates `~/.yabairc` and `~/.skhdrc` while applying live changes via `yabai -m config` in real time.
+- **Daemon Controller & CLI Symlinker:** Start, stop, or restart daemons with one click, or symlink the bundled binaries into `~/.local/bin` for terminal use.
+
+---
+
+## Default Keyboard Shortcuts (Modifier: `⌥ Option`)
+
+| Keystroke | Action |
+| :--- | :--- |
+| `⌥ + H / J / K / L` | Focus West / South / North / East |
+| `⇧⌥ + H / J / K / L` | Swap Window Position Directionally |
+| `⌥ + T` | Toggle Window between Floating & Tiled |
+| `⌥ + E` | Toggle Split Orientation (Horizontal / Vertical) |
+| `⌥ + B` | Balance Window Sizes |
+| `⌥ + 1–5` | Switch Workspace (1 to 5) |
+| `⇧⌥ + 1–5` | Send Active Window to Workspace |
+
+---
+
+## Building & Installation Packages
+
+### 1. Build & Run from Source
+```bash
+# Build release and bundle the application
+./bundle.sh
+
+# Launch the app
+open YabaiControl.app
+```
+
+### 2. Generate Distribution Packages (.pkg and .dmg)
+To create standalone distribution packages for macOS:
+```bash
+./package.sh
+```
+This generates:
+* `dist/YabaiControl-1.0.0.pkg` (macOS Installer Package)
+* `dist/YabaiControl-1.0.0.dmg` (Drag-and-Drop Disk Image)
+
+---
+
+## One-Time Permissions Setup
+
+To allow `yabai` and `skhd` to manage window frames and capture hotkeys:
+1. Open **System Settings $\rightarrow$ Privacy & Security $\rightarrow$ Accessibility** and toggle **ON**:
+   * `YabaiControl`
+   * `yabai`
+   * `skhd`
+2. Open **System Settings $\rightarrow$ Privacy & Security $\rightarrow$ Input Monitoring** and ensure `skhd` is allowed if prompted.
+
+---
+
+## Development & Contribution Workflow
+
+This project is open-sourced on GitHub with **`main`** as the default stable branch.
+
+### Contributing New Features:
+To maintain repository stability, **all new changes and features must be submitted via Pull Requests (PRs)**:
+
+1. **Create a new feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. **Make your changes and verify with a release build:**
+   ```bash
+   ./bundle.sh
+   ```
+3. **Commit your changes:**
+   ```bash
+   git add .
+   git commit -m "feat: describe your feature"
+   ```
+4. **Push the feature branch and open a PR:**
+   ```bash
+   git push origin feature/your-feature-name
+   gh pr create --base main --head feature/your-feature-name --title "New Feature" --body "Description of changes"
+   ```

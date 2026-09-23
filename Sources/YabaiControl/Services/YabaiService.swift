@@ -1,0 +1,325 @@
+import Foundation
+import Combine
+import ApplicationServices
+import AppKit
+
+@MainActor
+public class YabaiService: ObservableObject {
+    public static let shared = YabaiService()
+
+    @Published public var yabaiConfig = YabaiConfig()
+    @Published public var skhdConfig = SKHDConfig()
+
+    @Published public var isYabaiRunning: Bool = false
+    @Published public var isSkhdRunning: Bool = false
+    @Published public var isYabaiInstalled: Bool = false
+    @Published public var isSkhdInstalled: Bool = false
+    @Published public var isYabaiBundled: Bool = false
+    @Published public var isSkhdBundled: Bool = false
+    @Published public var hasAccessibilityPermission: Bool = false
+    @Published public var statusMessage: String = "Ready"
+
+    // UI state
+    @Published public var selectedTab: Int = 0
+    @Published public var newAppName: String = ""
+
+    private var timer: Timer?
+
+    private var homeDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    public var yabaircURL: URL {
+        homeDir.appendingPathComponent(".yabairc")
+    }
+
+    public var skhdrcURL: URL {
+        homeDir.appendingPathComponent(".skhdrc")
+    }
+
+    // Resolves yabai binary path (prioritizes stable system/homebrew paths for persistent TCC permissions)
+    public var yabaiBinaryPath: String {
+        for path in ["/opt/homebrew/bin/yabai", "/usr/local/bin/yabai", "\(homeDir.path)/.local/bin/yabai"] {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        if let bundlePath = Bundle.main.path(forResource: "yabai", ofType: nil, inDirectory: "bin"),
+           FileManager.default.fileExists(atPath: bundlePath) {
+            return bundlePath
+        }
+        return "/opt/homebrew/bin/yabai"
+    }
+
+    // Resolves skhd binary path
+    public var skhdBinaryPath: String {
+        for path in ["/opt/homebrew/bin/skhd", "/usr/local/bin/skhd", "\(homeDir.path)/.local/bin/skhd"] {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        if let bundlePath = Bundle.main.path(forResource: "skhd", ofType: nil, inDirectory: "bin"),
+           FileManager.default.fileExists(atPath: bundlePath) {
+            return bundlePath
+        }
+        return "/opt/homebrew/bin/skhd"
+    }
+
+    private init() {
+        checkInstallations()
+        checkRunningState()
+        checkAccessibility()
+        loadConfigs()
+
+        // Periodic heartbeat (checks state passively without prompting)
+        timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkRunningState()
+                self?.checkAccessibility()
+            }
+        }
+    }
+
+    public func checkInstallations() {
+        isYabaiInstalled = FileManager.default.fileExists(atPath: yabaiBinaryPath)
+        isSkhdInstalled = FileManager.default.fileExists(atPath: skhdBinaryPath)
+        isYabaiBundled = yabaiBinaryPath.contains("Resources/bin") || yabaiBinaryPath.contains(".app")
+        isSkhdBundled = skhdBinaryPath.contains("Resources/bin") || skhdBinaryPath.contains(".app")
+    }
+
+    public func checkAccessibility() {
+        hasAccessibilityPermission = AXIsProcessTrusted()
+    }
+
+    public func checkRunningState() {
+        isYabaiRunning = isProcessRunning("yabai")
+        isSkhdRunning = isProcessRunning("skhd")
+    }
+
+    private func isProcessRunning(_ name: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        process.arguments = ["-x", name]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - Config Persistence
+
+    public func loadConfigs() {
+        if FileManager.default.fileExists(atPath: yabaircURL.path) {
+            if let content = try? String(contentsOf: yabaircURL, encoding: .utf8) {
+                parseYabairc(content)
+            }
+        }
+
+        if FileManager.default.fileExists(atPath: skhdrcURL.path) {
+            if let content = try? String(contentsOf: skhdrcURL, encoding: .utf8) {
+                parseSkhdrc(content)
+            }
+        }
+    }
+
+    private func parseYabairc(_ content: String) {
+        let lines = content.components(separatedBy: .newlines)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("#") || trimmed.isEmpty { continue }
+
+            if trimmed.contains("config layout") {
+                if trimmed.contains("bsp") { yabaiConfig.layout = .bsp }
+                else if trimmed.contains("stack") { yabaiConfig.layout = .stack }
+                else if trimmed.contains("float") { yabaiConfig.layout = .float }
+            } else if trimmed.contains("config window_gap") {
+                if let val = trimmed.components(separatedBy: " ").last, let intVal = Int(val) {
+                    yabaiConfig.windowGap = intVal
+                }
+            } else if trimmed.contains("config top_padding") {
+                if let val = trimmed.components(separatedBy: " ").last, let intVal = Int(val) {
+                    yabaiConfig.topPadding = intVal
+                }
+            } else if trimmed.contains("config bottom_padding") {
+                if let val = trimmed.components(separatedBy: " ").last, let intVal = Int(val) {
+                    yabaiConfig.bottomPadding = intVal
+                }
+            } else if trimmed.contains("config focus_follows_mouse") {
+                if trimmed.contains("autoraise") { yabaiConfig.focusFollowsMouse = .autoraise }
+                else if trimmed.contains("autofocus") { yabaiConfig.focusFollowsMouse = .autofocus }
+                else { yabaiConfig.focusFollowsMouse = .off }
+            } else if trimmed.contains("config mouse_follows_focus") {
+                yabaiConfig.mouseFollowsFocus = trimmed.contains("on")
+            }
+        }
+    }
+
+    private func parseSkhdrc(_ content: String) {
+        let lines = content.components(separatedBy: .newlines)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("window --focus west") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.focusLeft = key
+                }
+            }
+        }
+    }
+
+    public func saveAndApply() {
+        let yabaiContent = yabaiConfig.generateYabairc()
+        let skhdContent = skhdConfig.generateSkhdrc()
+
+        do {
+            try yabaiContent.write(to: yabaircURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: yabaircURL.path)
+
+            try skhdContent.write(to: skhdrcURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: skhdrcURL.path)
+
+            statusMessage = "Configuration saved!"
+            applyLiveSettings()
+        } catch {
+            statusMessage = "Error saving config: \(error.localizedDescription)"
+        }
+    }
+
+    public func applyLiveSettings() {
+        guard isYabaiRunning else { return }
+
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "layout", yabaiConfig.layout.rawValue])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "window_gap", "\(yabaiConfig.windowGap)"])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "top_padding", "\(yabaiConfig.topPadding)"])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "bottom_padding", "\(yabaiConfig.bottomPadding)"])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "left_padding", "\(yabaiConfig.leftPadding)"])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "right_padding", "\(yabaiConfig.rightPadding)"])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "focus_follows_mouse", yabaiConfig.focusFollowsMouse.rawValue])
+        runCommand(yabaiBinaryPath, args: ["-m", "config", "mouse_follows_focus", yabaiConfig.mouseFollowsFocus ? "on" : "off"])
+
+        if isSkhdRunning {
+            runCommand("/usr/bin/killall", args: ["-HUP", "skhd"])
+        }
+    }
+
+    // MARK: - Service Control
+
+    public func startServices() {
+        // 1. Ensure config files exist
+        if !FileManager.default.fileExists(atPath: yabaircURL.path) ||
+           !FileManager.default.fileExists(atPath: skhdrcURL.path) {
+            saveAndApply()
+        }
+
+        // 2. Start yabai service via launchd
+        if isYabaiInstalled {
+            runCommand(yabaiBinaryPath, args: ["--start-service"])
+        }
+
+        // 3. Start skhd service via launchd
+        if isSkhdInstalled {
+            runCommand(skhdBinaryPath, args: ["--start-service"])
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            self.checkRunningState()
+            if self.isYabaiRunning && self.isSkhdRunning {
+                self.statusMessage = "Daemons running normally."
+            } else {
+                self.statusMessage = "Permission Required: Please allow yabai & skhd in System Settings."
+            }
+        }
+    }
+
+    public func stopServices() {
+        if isYabaiInstalled {
+            runCommand(yabaiBinaryPath, args: ["--stop-service"])
+        }
+        if isSkhdInstalled {
+            runCommand(skhdBinaryPath, args: ["--stop-service"])
+        }
+
+        runCommand("/usr/bin/pkill", args: ["-x", "yabai"])
+        runCommand("/usr/bin/pkill", args: ["-x", "skhd"])
+
+        statusMessage = "Services stopped."
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.checkRunningState()
+        }
+    }
+
+    public func restartServices() {
+        stopServices()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.startServices()
+        }
+    }
+
+    public func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    public func openInputMonitoringSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    public func setLayout(_ layout: YabaiLayout) {
+        yabaiConfig.layout = layout
+        applyLiveSettings()
+    }
+
+    public func balanceSizes() {
+        runCommand(yabaiBinaryPath, args: ["-m", "space", "--balance"])
+    }
+
+    public func toggleActiveWindowFloat() {
+        runCommand(yabaiBinaryPath, args: ["-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2"])
+    }
+
+    public func installCLIToolsToUserPath() {
+        let userLocalBin = homeDir.appendingPathComponent(".local/bin")
+        try? FileManager.default.createDirectory(at: userLocalBin, withIntermediateDirectories: true)
+        let yabaiDest = userLocalBin.appendingPathComponent("yabai").path
+        let skhdDest = userLocalBin.appendingPathComponent("skhd").path
+        try? FileManager.default.removeItem(atPath: yabaiDest)
+        try? FileManager.default.removeItem(atPath: skhdDest)
+        try? FileManager.default.createSymbolicLink(atPath: yabaiDest, withDestinationPath: yabaiBinaryPath)
+        try? FileManager.default.createSymbolicLink(atPath: skhdDest, withDestinationPath: skhdBinaryPath)
+        statusMessage = "CLI tools symlinked into ~/.local/bin"
+    }
+
+    @discardableResult
+    private func runCommand(_ binary: String, args: [String]) -> (status: Int32, output: String) {
+        guard FileManager.default.fileExists(atPath: binary) else { return (-1, "Not found") }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: binary)
+        process.arguments = args
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let out = String(data: data, encoding: .utf8) ?? ""
+            return (process.terminationStatus, out)
+        } catch {
+            return (-1, error.localizedDescription)
+        }
+    }
+}

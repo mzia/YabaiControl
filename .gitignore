@@ -1,0 +1,8 @@
+.DS_Store
+.build/
+*.app
+dist/
+*.xcodeproj
+xcuserdata/
+*.swp
+*~
