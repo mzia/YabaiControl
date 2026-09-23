@@ -23,12 +23,16 @@ public struct SettingsView: View {
                 .tabItem { Label("Keybindings", systemImage: "keyboard") }
                 .tag(3)
 
+            profilesTabView
+                .tabItem { Label("Profiles", systemImage: "sparkles.rectangle.stack") }
+                .tag(5)
+
             servicesTabView
                 .tabItem { Label("Services", systemImage: "gearshape.2") }
                 .tag(4)
         }
         .padding(20)
-        .frame(minWidth: 580, minHeight: 460)
+        .frame(minWidth: 620, minHeight: 480)
         .confirmationDialog(
             "Uninstall YabaiControl?",
             isPresented: $service.showUninstallAlert,
@@ -71,6 +75,15 @@ public struct SettingsView: View {
                 .pickerStyle(.menu)
 
                 Toggle("Warp Mouse to Center of Focused Window", isOn: $service.yabaiConfig.mouseFollowsFocus)
+            }
+
+            Section(header: Text("Menu Bar Title & Appearance").font(.headline)) {
+                Picker("Display Format in Menu Bar", selection: $service.yabaiConfig.menuBarDisplayStyle) {
+                    ForEach(MenuBarDisplayStyle.allCases) { style in
+                        Text(style.rawValue).tag(style)
+                    }
+                }
+                .pickerStyle(.radioGroup)
             }
 
             Spacer()
@@ -235,29 +248,73 @@ public struct SettingsView: View {
                         Text("Control + Option").tag("ctrl + alt")
                     }
                     .pickerStyle(.menu)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Text("Presets:")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Button("Vim") {
+                            service.skhdConfig.focusLeft = "h"
+                            service.skhdConfig.focusDown = "j"
+                            service.skhdConfig.focusUp = "k"
+                            service.skhdConfig.focusRight = "l"
+                            service.skhdConfig.swapLeft = "h"
+                            service.skhdConfig.swapDown = "j"
+                            service.skhdConfig.swapUp = "k"
+                            service.skhdConfig.swapRight = "l"
+                        }
+                        .controlSize(.mini)
+
+                        Button("Arrows") {
+                            service.skhdConfig.focusLeft = "left"
+                            service.skhdConfig.focusDown = "down"
+                            service.skhdConfig.focusUp = "up"
+                            service.skhdConfig.focusRight = "right"
+                            service.skhdConfig.swapLeft = "left"
+                            service.skhdConfig.swapDown = "down"
+                            service.skhdConfig.swapUp = "up"
+                            service.skhdConfig.swapRight = "right"
+                        }
+                        .controlSize(.mini)
+
+                        Button("WASD") {
+                            service.skhdConfig.focusLeft = "a"
+                            service.skhdConfig.focusDown = "s"
+                            service.skhdConfig.focusUp = "w"
+                            service.skhdConfig.focusRight = "d"
+                            service.skhdConfig.swapLeft = "a"
+                            service.skhdConfig.swapDown = "s"
+                            service.skhdConfig.swapUp = "w"
+                            service.skhdConfig.swapRight = "d"
+                        }
+                        .controlSize(.mini)
+                    }
                 }
 
                 Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
                     GridRow {
-                        Text("Focus Left:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusLeft).frame(width: 40)
+                        Text("Focus West:").fontWeight(.medium)
+                        TextField("", text: $service.skhdConfig.focusLeft).frame(width: 50)
 
-                        Text("Focus Down:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusDown).frame(width: 40)
+                        Text("Focus South:").fontWeight(.medium)
+                        TextField("", text: $service.skhdConfig.focusDown).frame(width: 50)
                     }
                     GridRow {
-                        Text("Focus Up:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusUp).frame(width: 40)
+                        Text("Focus North:").fontWeight(.medium)
+                        TextField("", text: $service.skhdConfig.focusUp).frame(width: 50)
 
-                        Text("Focus Right:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusRight).frame(width: 40)
+                        Text("Focus East:").fontWeight(.medium)
+                        TextField("", text: $service.skhdConfig.focusRight).frame(width: 50)
                     }
                     GridRow {
                         Text("Toggle Float:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.toggleFloat).frame(width: 40)
+                        TextField("", text: $service.skhdConfig.toggleFloat).frame(width: 50)
 
                         Text("Balance Sizes:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.balanceSizes).frame(width: 40)
+                        TextField("", text: $service.skhdConfig.balanceSizes).frame(width: 50)
                     }
                 }
             }
@@ -270,6 +327,96 @@ public struct SettingsView: View {
 
             saveButton
         }
+    }
+
+    // MARK: - Tab 4: Workflow Profiles
+    private var profilesTabView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Workflow Profiles")
+                    .font(.headline)
+                Text("Instantly switch window layouts, padding, gap sizes, and mouse focus behaviors tailored for different workflows.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                ForEach(WindowProfile.presets) { profile in
+                    profileCard(for: profile)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func profileCard(for profile: WindowProfile) -> some View {
+        let isCurrent = isProfileActive(profile)
+
+        HStack(spacing: 16) {
+            Image(systemName: profile.icon)
+                .font(.title2)
+                .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
+                .frame(width: 36, height: 36)
+                .background(isCurrent ? Color.accentColor.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(profile.name)
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                    if isCurrent {
+                        Text("ACTIVE")
+                            .font(.caption2)
+                            .fontWeight(.heavy)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.2))
+                            .foregroundStyle(.green)
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(profile.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    Label(profile.layout.displayName, systemImage: profile.layout.iconName)
+                    Label("\(profile.windowGap)px gap", systemImage: "arrow.left.and.right")
+                    Label("\(profile.padding)px margin", systemImage: "square.inset.filled")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+            }
+
+            Spacer()
+
+            if isCurrent {
+                Button("Active") {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                    .controlSize(.small)
+            } else {
+                Button("Apply") {
+                    service.applyProfile(profile)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(isCurrent ? 0.8 : 0.4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isCurrent ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func isProfileActive(_ profile: WindowProfile) -> Bool {
+        service.yabaiConfig.layout == profile.layout &&
+        service.yabaiConfig.windowGap == profile.windowGap &&
+        service.yabaiConfig.topPadding == profile.padding
     }
 
     // MARK: - Tab 5: Services & Daemons
@@ -378,6 +525,83 @@ public struct SettingsView: View {
                 .padding(12)
                 .background(Color.orange.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Scripting Addition (SA) & SIP Assistant", systemImage: "lock.shield")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(service.isSALoaded ? Color.green : Color.orange)
+                            .frame(width: 8, height: 8)
+                        Text(service.isSALoaded ? "SA Injected" : "SA Not Injected")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("System Integrity Protection: \(service.sipStatusText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if service.isSALoaded {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Scripting addition is loaded. Instant workspace transitions and focus-without-click are active.")
+                            .font(.caption)
+                    }
+                    .padding(10)
+                    .background(Color.green.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("For instant space transitions, yabai injects code into Dock.app. Run this sudoers rule to allow passwordless loading:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Text(service.sudoersCommand)
+                                .font(.system(.caption2, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .padding(6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(nsColor: .textBackgroundColor))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                            Button("Copy Rule") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(service.sudoersCommand, forType: .string)
+                            }
+                            .controlSize(.small)
+                        }
+
+                        HStack(spacing: 8) {
+                            Button("Load Scripting Addition") {
+                                service.loadScriptingAddition()
+                            }
+                            .controlSize(.small)
+                            .buttonStyle(.borderedProminent)
+
+                            Button("Refresh Status") {
+                                service.checkScriptingAddition()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
             }
 
             Divider()

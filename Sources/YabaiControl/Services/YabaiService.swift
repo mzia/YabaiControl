@@ -20,10 +20,39 @@ public class YabaiService: ObservableObject {
     @Published public var hasAccessibilityPermission: Bool = false
     @Published public var statusMessage: String = "Ready"
 
+    // Workspaces & Spaces
+    @Published public var spaces: [YabaiSpace] = []
+    @Published public var activeSpaceIndex: Int = 1
+
+    // Workflow Profiles
+    @Published public var activeProfileId: String? = "balanced"
+
+    // Scripting Addition & SIP
+    @Published public var isSALoaded: Bool = false
+    @Published public var sipStatusText: String = "Checking..."
+    @Published public var sudoersCommand: String = ""
+
     // UI state
     @Published public var selectedTab: Int = 0
     @Published public var newAppName: String = ""
     @Published public var showUninstallAlert: Bool = false
+
+    public var menuBarIcon: String {
+        yabaiConfig.layout.iconName
+    }
+
+    public var menuBarStatusText: String {
+        switch yabaiConfig.menuBarDisplayStyle {
+        case .iconOnly:
+            return ""
+        case .iconAndLayout:
+            return yabaiConfig.layout.rawValue.uppercased()
+        case .iconAndSpace:
+            return "S\(activeSpaceIndex)"
+        case .iconAndBoth:
+            return "\(yabaiConfig.layout.rawValue.uppercased()) • S\(activeSpaceIndex)"
+        }
+    }
 
     private var timer: Timer?
 
@@ -72,12 +101,15 @@ public class YabaiService: ObservableObject {
         checkRunningState()
         checkAccessibility()
         loadConfigs()
+        querySpaces()
+        checkScriptingAddition()
 
         // Periodic heartbeat (checks state passively without prompting)
         timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.checkRunningState()
                 self?.checkAccessibility()
+                self?.querySpaces()
                 self?.checkTrashStatus()
             }
         }
@@ -304,6 +336,80 @@ public class YabaiService: ObservableObject {
 
     public func toggleActiveWindowFloat() {
         runCommand(yabaiBinaryPath, args: ["-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2"])
+    }
+
+    // MARK: - Workspaces & Spaces
+
+    public func querySpaces() {
+        guard isYabaiRunning else { return }
+        let res = runCommand(yabaiBinaryPath, args: ["-m", "query", "--spaces"])
+        guard res.status == 0, let data = res.output.data(using: .utf8) else { return }
+        if let decoded = try? JSONDecoder().decode([YabaiSpace].self, from: data) {
+            self.spaces = decoded
+            if let focused = decoded.first(where: { $0.hasFocus }) {
+                self.activeSpaceIndex = focused.index
+            }
+        }
+    }
+
+    public func focusSpace(index: Int) {
+        runCommand(yabaiBinaryPath, args: ["-m", "space", "--focus", "\(index)"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.querySpaces()
+        }
+    }
+
+    // MARK: - Visual Quick-Snap Grid
+
+    public func snapActiveWindow(to position: WindowSnapPosition) {
+        runCommand(yabaiBinaryPath, args: ["-m", "window", "--grid", position.gridCommand])
+        statusMessage = "Snapped window to \(position.rawValue)."
+    }
+
+    // MARK: - Workflow Profiles & Presets
+
+    public func applyProfile(_ profile: WindowProfile) {
+        activeProfileId = profile.id
+        yabaiConfig.layout = profile.layout
+        yabaiConfig.windowGap = profile.windowGap
+        yabaiConfig.topPadding = profile.padding
+        yabaiConfig.bottomPadding = profile.padding
+        yabaiConfig.leftPadding = profile.padding
+        yabaiConfig.rightPadding = profile.padding
+        yabaiConfig.splitRatio = profile.splitRatio
+        yabaiConfig.focusFollowsMouse = profile.focusFollowsMouse
+        yabaiConfig.windowOpacity = profile.windowOpacity
+        yabaiConfig.activeOpacity = profile.activeOpacity
+
+        applyLiveSettings()
+        saveAndApply()
+        statusMessage = "Applied '\(profile.name)' profile."
+    }
+
+    // MARK: - Scripting Addition (SA) & SIP
+
+    public func checkScriptingAddition() {
+        let sipRes = runCommand("/usr/bin/csrutil", args: ["status"])
+        if sipRes.status == 0 {
+            sipStatusText = sipRes.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            sipStatusText = "Unknown"
+        }
+
+        let whoami = NSUserName()
+        let shasumRes = runCommand("/usr/bin/shasum", args: ["-a", "256", yabaiBinaryPath])
+        let hash = shasumRes.output.components(separatedBy: " ").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "<sha256>"
+        sudoersCommand = "\(whoami) ALL=(root) NOPASSWD: sha256:\(hash) \(yabaiBinaryPath) --load-sa"
+    }
+
+    public func loadScriptingAddition() {
+        let res = runCommand("/usr/bin/sudo", args: [yabaiBinaryPath, "--load-sa"])
+        if res.status == 0 {
+            isSALoaded = true
+            statusMessage = "Scripting Addition loaded successfully."
+        } else {
+            statusMessage = "Could not load SA (requires sudoers entry or SIP partial disablement)."
+        }
     }
 
     public func installCLIToolsToUserPath() {
