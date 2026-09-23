@@ -32,6 +32,19 @@ public class YabaiService: ObservableObject {
     @Published public var sipStatusText: String = "Checking..."
     @Published public var sudoersCommand: String = ""
 
+    // Update & Restart Management
+    @Published public var isUpdateAvailable: Bool = false
+    @Published public var isRestartRequired: Bool = false
+    @Published public var updateVersion: String = ""
+    @Published public var updateReleaseNotes: String = ""
+    @Published public var lastUpdateCheckDate: Date? = nil
+    @Published public var isCheckingForUpdates: Bool = false
+    @Published public var updateStatusMessage: String = "Up to date"
+
+    public var isUpdatePendingRestart: Bool {
+        isUpdateAvailable && isRestartRequired
+    }
+
     // UI state
     @Published public var selectedTab: Int = 0
     @Published public var newAppName: String = ""
@@ -422,6 +435,104 @@ public class YabaiService: ObservableObject {
         try? FileManager.default.createSymbolicLink(atPath: yabaiDest, withDestinationPath: yabaiBinaryPath)
         try? FileManager.default.createSymbolicLink(atPath: skhdDest, withDestinationPath: skhdBinaryPath)
         statusMessage = "CLI tools symlinked into ~/.local/bin"
+    }
+
+    // MARK: - Update & Restart Management
+
+    public func setUpdatePendingRestart(available: Bool, restartRequired: Bool, version: String = "") {
+        self.isUpdateAvailable = available
+        self.isRestartRequired = restartRequired
+        if !version.isEmpty {
+            self.updateVersion = version
+            self.updateStatusMessage = "Version \(version) ready. Restart required."
+        }
+    }
+
+    public func toggleSimulatedUpdate() {
+        if isUpdatePendingRestart {
+            isUpdateAvailable = false
+            isRestartRequired = false
+            updateVersion = ""
+            statusMessage = "Update status cleared."
+            updateStatusMessage = "Up to date"
+        } else {
+            isUpdateAvailable = true
+            isRestartRequired = true
+            updateVersion = "1.1.0"
+            statusMessage = "Simulated update ready. Restart required."
+            updateStatusMessage = "Version 1.1.0 ready. Restart required."
+        }
+    }
+
+    public func performPendingRestart() {
+        isRestartRequired = false
+        isUpdateAvailable = false
+        statusMessage = "Restarting services and applying updates..."
+        restartServices()
+    }
+
+    public func checkForUpdates() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        updateStatusMessage = "Checking for updates..."
+
+        guard let url = URL(string: "https://api.github.com/repos/mzia/YabaiControl/releases/latest") else {
+            isCheckingForUpdates = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("YabaiControl-App", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 10
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isCheckingForUpdates = false
+                self.lastUpdateCheckDate = Date()
+
+                if let error = error {
+                    self.updateStatusMessage = "Check failed: \(error.localizedDescription)"
+                    return
+                }
+
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let tagName = json["tag_name"] as? String else {
+                    self.updateStatusMessage = "YabaiControl is up to date."
+                    return
+                }
+
+                let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let cleanTag = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+
+                if self.isVersion(cleanTag, greaterThan: currentVersion) {
+                    self.isUpdateAvailable = true
+                    self.isRestartRequired = true
+                    self.updateVersion = cleanTag
+                    self.updateReleaseNotes = (json["body"] as? String) ?? ""
+                    self.updateStatusMessage = "Version \(cleanTag) ready. Restart required."
+                    self.statusMessage = "Update \(cleanTag) available. Restart required."
+                } else {
+                    self.isUpdateAvailable = false
+                    self.updateStatusMessage = "YabaiControl \(currentVersion) is up to date."
+                }
+            }
+        }.resume()
+    }
+
+    public func isVersion(_ v1: String, greaterThan v2: String) -> Bool {
+        let parts1 = v1.split(separator: ".").compactMap { Int($0) }
+        let parts2 = v2.split(separator: ".").compactMap { Int($0) }
+        let maxCount = max(parts1.count, parts2.count)
+        for i in 0..<maxCount {
+            let p1 = i < parts1.count ? parts1[i] : 0
+            let p2 = i < parts2.count ? parts2[i] : 0
+            if p1 > p2 { return true }
+            if p1 < p2 { return false }
+        }
+        return false
     }
 
     // MARK: - Floating Application Management

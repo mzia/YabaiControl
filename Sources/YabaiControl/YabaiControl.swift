@@ -16,13 +16,21 @@ struct YabaiControlApp: App {
             MenuBarView()
                 .environmentObject(service)
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Image(systemName: service.menuBarIcon)
+
+                if service.isUpdatePendingRestart {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 8, weight: .heavy))
+                }
+
                 if !service.menuBarStatusText.isEmpty {
                     Text(service.menuBarStatusText)
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 }
             }
+            .help(service.isUpdatePendingRestart ? "Update ready — restart required" : "YabaiControl")
+            .accessibilityLabel(service.isUpdatePendingRestart ? "YabaiControl, update ready, restart required" : "YabaiControl")
         }
         .menuBarExtraStyle(.window)
 

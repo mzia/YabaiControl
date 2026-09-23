@@ -606,6 +606,74 @@ public struct SettingsView: View {
 
             Divider()
 
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Software Updates & System Status", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+
+                    if service.isCheckingForUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if service.isUpdatePendingRestart {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down")
+                                .font(.caption2.weight(.heavy))
+                            Text("Restart Required")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.15))
+                        .clipShape(Capsule())
+                    }
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Installed Version: 1.0.0")
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+
+                        Text(service.updateStatusMessage)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 8) {
+                        Button("Check for Updates") {
+                            service.checkForUpdates()
+                        }
+                        .controlSize(.small)
+                        .disabled(service.isCheckingForUpdates)
+
+                        if service.isUpdatePendingRestart {
+                            Button("Restart Services") {
+                                service.performPendingRestart()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        } else {
+                            Button("Test Update Badge") {
+                                service.toggleSimulatedUpdate()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            Divider()
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Uninstall Application").font(.subheadline).bold()
                 Text("Stops all background daemons, removes launch agents and CLI symlinks, and moves YabaiControl to the Trash.")
