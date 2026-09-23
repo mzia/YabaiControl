@@ -343,6 +343,9 @@ public struct MenuBarView: View {
         } message: {
             Text("This will stop all running daemons, remove launch agents and CLI symlinks, and move YabaiControl to the Trash.")
         }
+        .onAppear {
+            service.refreshAllState()
+        }
     }
 
     @ViewBuilder

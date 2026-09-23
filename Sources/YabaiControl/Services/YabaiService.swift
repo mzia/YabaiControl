@@ -3,6 +3,7 @@ import Combine
 import ApplicationServices
 import AppKit
 import UniformTypeIdentifiers
+import Darwin
 
 @MainActor
 public class YabaiService: ObservableObject {
@@ -109,6 +110,8 @@ public class YabaiService: ObservableObject {
         return "/opt/homebrew/bin/skhd"
     }
 
+    private var workspaceObservers: [NSObjectProtocol] = []
+
     private init() {
         checkInstallations()
         checkRunningState()
@@ -116,16 +119,89 @@ public class YabaiService: ObservableObject {
         loadConfigs()
         querySpaces()
         checkScriptingAddition()
+        setupEventObservers()
 
-        // Periodic heartbeat (checks state passively without prompting)
-        timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        // Low-power background heartbeat with timer coalescing (App Nap friendly)
+        let heartbeat = Timer(timeInterval: 20.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.checkRunningState()
-                self?.checkAccessibility()
-                self?.querySpaces()
                 self?.checkTrashStatus()
             }
         }
+        heartbeat.tolerance = 5.0
+        RunLoop.main.add(heartbeat, forMode: .common)
+        self.timer = heartbeat
+    }
+
+    private func setupEventObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+
+        // 1. Instant space change notification via macOS WindowServer (0ms latency, zero polling)
+        let spaceObs = center.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.querySpaces()
+            }
+        }
+        workspaceObservers.append(spaceObs)
+
+        // 2. Instant process launch/termination notifications
+        let launchObs = center.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkRunningState()
+            }
+        }
+        workspaceObservers.append(launchObs)
+
+        let termObs = center.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkRunningState()
+            }
+        }
+        workspaceObservers.append(termObs)
+
+        // 3. Screen parameters changed (multi-monitor plug/unplug)
+        let screenObs = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.querySpaces()
+            }
+        }
+        workspaceObservers.append(screenObs)
+
+        // 4. App became active (user opened popover or settings)
+        let activeObs = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshAllState()
+            }
+        }
+        workspaceObservers.append(activeObs)
+    }
+
+    public func refreshAllState() {
+        checkInstallations()
+        checkRunningState()
+        checkAccessibility()
+        querySpaces()
+        checkTrashStatus()
     }
 
     public func checkInstallations() {
@@ -183,22 +259,36 @@ public class YabaiService: ObservableObject {
         isSkhdRunning = isProcessRunning("skhd")
     }
 
-    private func isProcessRunning(_ name: String) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-x", name]
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
-        } catch {
-            return false
+    public func isProcessRunning(_ name: String) -> Bool {
+        // 1. In-memory check for running applications via NSWorkspace (0 subprocess forks)
+        let runningApps = NSWorkspace.shared.runningApplications
+        if runningApps.contains(where: {
+            $0.localizedName?.lowercased() == name.lowercased() ||
+            $0.executableURL?.lastPathComponent.lowercased() == name.lowercased()
+        }) {
+            return true
         }
+
+        // 2. In-memory check for BSD background daemons via Darwin libproc (0 subprocess forks)
+        var pids = [pid_t](repeating: 0, count: 2048)
+        let bytesUsed = proc_listpids(UInt32(PROC_ALL_PIDS), 0, &pids, Int32(MemoryLayout<pid_t>.size * pids.count))
+        guard bytesUsed > 0 else { return false }
+
+        let count = Int(bytesUsed) / MemoryLayout<pid_t>.size
+        var nameBuffer = [CChar](repeating: 0, count: 256)
+        for i in 0..<count where pids[i] > 0 {
+            let length = proc_name(pids[i], &nameBuffer, UInt32(nameBuffer.count))
+            if length > 0 {
+                let procName = nameBuffer.withUnsafeBufferPointer { ptr in
+                    ptr.baseAddress.map { String(cString: $0) } ?? ""
+                }
+                if procName == name {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     // MARK: - Config Persistence
@@ -704,6 +794,14 @@ public class YabaiService: ObservableObject {
             return (process.terminationStatus, out)
         } catch {
             return (-1, error.localizedDescription)
+        }
+    }
+
+    isolated deinit {
+        timer?.invalidate()
+        for obs in workspaceObservers {
+            NotificationCenter.default.removeObserver(obs)
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
         }
     }
 }
