@@ -70,6 +70,23 @@ To allow `yabai` and `skhd` to manage window frames and capture hotkeys:
 
 ---
 
+## Uninstallation
+
+YabaiControl is designed to uninstall completely and cleanly without leaving orphan services:
+
+1. **Trashing the App:**
+   Dragging `YabaiControl.app` to the **Trash** automatically detects removal, unloads all background `yabai` and `skhd` LaunchAgents, removes CLI symlinks, and terminates cleanly.
+2. **In-App One-Click Uninstall:**
+   Click the Menu Bar icon $\rightarrow$ **"Uninstall..."** (or in **Preferences $\rightarrow$ Services**). It will confirm and move the app to Trash while wiping LaunchAgents and stopping services.
+3. **Terminal Script:**
+   ```bash
+   ./uninstall.sh
+   # Or to also wipe ~/.yabairc and ~/.skhdrc:
+   ./uninstall.sh --all
+   ```
+
+---
+
 ## Development & Contribution Workflow
 
 This project is open-sourced on GitHub with **`main`** as the default stable branch.

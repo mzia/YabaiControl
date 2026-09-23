@@ -161,6 +161,17 @@ public struct MenuBarView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Uninstall...") {
+                    service.showUninstallAlert = true
+                }
+                .font(.caption2)
+                .buttonStyle(.plain)
+                .foregroundStyle(.red)
+
+                Text("•")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
@@ -171,6 +182,18 @@ public struct MenuBarView: View {
         }
         .padding(14)
         .frame(width: 330)
+        .confirmationDialog(
+            "Uninstall YabaiControl?",
+            isPresented: $service.showUninstallAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Uninstall & Trash App", role: .destructive) {
+                service.uninstallApp()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will stop all running daemons, remove launch agents and CLI symlinks, and move YabaiControl to the Trash.")
+        }
     }
 
     @ViewBuilder
