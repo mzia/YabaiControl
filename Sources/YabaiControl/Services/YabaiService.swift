@@ -90,7 +90,22 @@ public class YabaiService: ObservableObject {
     }
 
     public func checkAccessibility() {
-        hasAccessibilityPermission = AXIsProcessTrusted()
+        if AXIsProcessTrusted() {
+            hasAccessibilityPermission = true
+            return
+        }
+
+        // If YabaiControl was ad-hoc re-signed or run under a launcher, check if
+        // the active yabai window manager daemon itself has Accessibility access
+        if isYabaiInstalled {
+            let res = runCommand(yabaiBinaryPath, args: ["-m", "query", "--spaces"])
+            if res.status == 0 && !res.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                hasAccessibilityPermission = true
+                return
+            }
+        }
+
+        hasAccessibilityPermission = false
     }
 
     public func checkRunningState() {
