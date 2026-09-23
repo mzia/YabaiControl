@@ -4,6 +4,7 @@ import ApplicationServices
 import AppKit
 import UniformTypeIdentifiers
 import Darwin
+import ServiceManagement
 
 @MainActor
 public class YabaiService: ObservableObject {
@@ -24,6 +25,13 @@ public class YabaiService: ObservableObject {
     // Workspaces & Spaces
     @Published public var spaces: [YabaiSpace] = []
     @Published public var activeSpaceIndex: Int = 1
+
+    // Windows & Quick Switcher
+    @Published public var allWindows: [YabaiWindow] = []
+
+    // Launch at Login
+    @Published public var isLaunchAtLoginEnabled: Bool = false
+    @Published public var launchAtLoginStatusMessage: String = ""
 
     // Workflow Profiles
     @Published public var activeProfileId: String? = "balanced"
@@ -49,6 +57,7 @@ public class YabaiService: ObservableObject {
     // UI state
     @Published public var selectedTab: Int = 0
     @Published public var newAppName: String = ""
+    @Published public var windowSearchText: String = ""
     @Published public var showUninstallAlert: Bool = false
 
     public var menuBarIcon: String {
@@ -65,6 +74,13 @@ public class YabaiService: ObservableObject {
             return "S\(activeSpaceIndex)"
         case .iconAndBoth:
             return "\(yabaiConfig.layout.rawValue.uppercased()) • S\(activeSpaceIndex)"
+        case .spacesPill:
+            if spaces.isEmpty {
+                return "S\(activeSpaceIndex)"
+            }
+            return spaces.sorted(by: { $0.index < $1.index }).map { s in
+                s.index == activeSpaceIndex ? "[\(s.index)]" : "\(s.index)"
+            }.joined(separator: " ")
         }
     }
 
@@ -201,6 +217,8 @@ public class YabaiService: ObservableObject {
         checkRunningState()
         checkAccessibility()
         querySpaces()
+        queryWindows()
+        checkLaunchAtLoginStatus()
         checkTrashStatus()
     }
 
@@ -233,7 +251,7 @@ public class YabaiService: ObservableObject {
 
         // 4. Check if yabai is running and responding to space queries
         if isYabaiInstalled && isYabaiRunning {
-            let res = runCommand(yabaiBinaryPath, args: ["-m", "query", "--spaces"])
+            let res = runYabaiCommand(["query", "--spaces"])
             if res.status == 0 && !res.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 hasAccessibilityPermission = true
                 return
@@ -371,15 +389,14 @@ public class YabaiService: ObservableObject {
 
     public func applyLiveSettings() {
         guard isYabaiRunning else { return }
-
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "layout", yabaiConfig.layout.rawValue])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "window_gap", "\(yabaiConfig.windowGap)"])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "top_padding", "\(yabaiConfig.topPadding)"])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "bottom_padding", "\(yabaiConfig.bottomPadding)"])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "left_padding", "\(yabaiConfig.leftPadding)"])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "right_padding", "\(yabaiConfig.rightPadding)"])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "focus_follows_mouse", yabaiConfig.focusFollowsMouse.rawValue])
-        runCommand(yabaiBinaryPath, args: ["-m", "config", "mouse_follows_focus", yabaiConfig.mouseFollowsFocus ? "on" : "off"])
+        runYabaiCommand(["config", "layout", yabaiConfig.layout.rawValue])
+        runYabaiCommand(["config", "window_gap", "\(yabaiConfig.windowGap)"])
+        runYabaiCommand(["config", "top_padding", "\(yabaiConfig.topPadding)"])
+        runYabaiCommand(["config", "bottom_padding", "\(yabaiConfig.bottomPadding)"])
+        runYabaiCommand(["config", "left_padding", "\(yabaiConfig.leftPadding)"])
+        runYabaiCommand(["config", "right_padding", "\(yabaiConfig.rightPadding)"])
+        runYabaiCommand(["config", "focus_follows_mouse", yabaiConfig.focusFollowsMouse.rawValue])
+        runYabaiCommand(["config", "mouse_follows_focus", yabaiConfig.mouseFollowsFocus ? "on" : "off"])
 
         if isSkhdRunning {
             runCommand("/usr/bin/killall", args: ["-HUP", "skhd"])
@@ -458,18 +475,18 @@ public class YabaiService: ObservableObject {
     }
 
     public func balanceSizes() {
-        runCommand(yabaiBinaryPath, args: ["-m", "space", "--balance"])
+        runYabaiCommand(["space", "--balance"])
     }
 
     public func toggleActiveWindowFloat() {
-        runCommand(yabaiBinaryPath, args: ["-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2"])
+        runYabaiCommand(["window", "--toggle", "float", "--grid", "4:4:1:1:2:2"])
     }
 
     // MARK: - Workspaces & Spaces
 
     public func querySpaces() {
         guard isYabaiRunning else { return }
-        let res = runCommand(yabaiBinaryPath, args: ["-m", "query", "--spaces"])
+        let res = runYabaiCommand(["query", "--spaces"])
         guard res.status == 0, let data = res.output.data(using: .utf8) else { return }
         if let decoded = try? JSONDecoder().decode([YabaiSpace].self, from: data) {
             self.spaces = decoded
@@ -480,17 +497,86 @@ public class YabaiService: ObservableObject {
     }
 
     public func focusSpace(index: Int) {
-        runCommand(yabaiBinaryPath, args: ["-m", "space", "--focus", "\(index)"])
+        runYabaiCommand(["space", "--focus", "\(index)"])
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.querySpaces()
+            self.queryWindows()
+        }
+    }
+
+    public func switchToNextSpace() {
+        guard !spaces.isEmpty else { return }
+        let sorted = spaces.sorted(by: { $0.index < $1.index })
+        if let currentIdx = sorted.firstIndex(where: { $0.index == activeSpaceIndex }) {
+            let nextIdx = (currentIdx + 1) % sorted.count
+            focusSpace(index: sorted[nextIdx].index)
+        } else if let first = sorted.first {
+            focusSpace(index: first.index)
+        }
+    }
+
+    public func switchToPreviousSpace() {
+        guard !spaces.isEmpty else { return }
+        let sorted = spaces.sorted(by: { $0.index < $1.index })
+        if let currentIdx = sorted.firstIndex(where: { $0.index == activeSpaceIndex }) {
+            let prevIdx = (currentIdx - 1 + sorted.count) % sorted.count
+            focusSpace(index: sorted[prevIdx].index)
+        } else if let last = sorted.last {
+            focusSpace(index: last.index)
+        }
+    }
+
+    // MARK: - Windows & Quick Switcher
+
+    public func queryWindows() {
+        guard isYabaiRunning else { return }
+        let res = runYabaiCommand(["query", "--windows"])
+        guard res.status == 0, let data = res.output.data(using: .utf8) else { return }
+        if let decoded = try? JSONDecoder().decode([YabaiWindow].self, from: data) {
+            self.allWindows = decoded.filter { !$0.app.isEmpty }
+        }
+    }
+
+    public func focusWindow(id: Int, space: Int = 1) {
+        runYabaiCommand(["window", "--focus", "\(id)"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.querySpaces()
+            self.queryWindows()
         }
     }
 
     // MARK: - Visual Quick-Snap Grid
 
     public func snapActiveWindow(to position: WindowSnapPosition) {
-        runCommand(yabaiBinaryPath, args: ["-m", "window", "--grid", position.gridCommand])
+        runYabaiCommand(["window", "--grid", position.gridCommand])
         statusMessage = "Snapped window to \(position.rawValue)."
+    }
+
+    // MARK: - Launch at Login (SMAppService)
+
+    public func checkLaunchAtLoginStatus() {
+        if #available(macOS 13.0, *) {
+            isLaunchAtLoginEnabled = (SMAppService.mainApp.status == .enabled)
+        }
+    }
+
+    public func setLaunchAtLogin(enabled: Bool) {
+        if #available(macOS 13.0, *) {
+            do {
+                if enabled {
+                    try SMAppService.mainApp.register()
+                    statusMessage = "YabaiControl registered to launch at login."
+                } else {
+                    try SMAppService.mainApp.unregister()
+                    statusMessage = "YabaiControl removed from login items."
+                }
+                isLaunchAtLoginEnabled = (SMAppService.mainApp.status == .enabled)
+                launchAtLoginStatusMessage = enabled ? "Registered as Login Item" : "Not Registered"
+            } catch {
+                launchAtLoginStatusMessage = "Error: \(error.localizedDescription)"
+                isLaunchAtLoginEnabled = (SMAppService.mainApp.status == .enabled)
+            }
+        }
     }
 
     // MARK: - Workflow Profiles & Presets
@@ -772,6 +858,23 @@ public class YabaiService: ObservableObject {
                 NSApplication.shared.terminate(nil)
             }
         }
+    }
+
+    @discardableResult
+    public func runYabaiCommand(_ arguments: [String]) -> (status: Int32, output: String) {
+        var cleanArgs = arguments
+        if cleanArgs.first == "-m" {
+            cleanArgs.removeFirst()
+        }
+
+        // 1. Zero-fork UNIX Domain Socket IPC (<0.2ms round-trip, zero Mach tasks)
+        if let socketResponse = YabaiIPC.sendMessage(cleanArgs) {
+            return socketResponse
+        }
+
+        // 2. Fall back to standard Process() subprocess CLI if socket offline
+        let fullArgs = cleanArgs.first == "-m" ? cleanArgs : (["-m"] + cleanArgs)
+        return runCommand(yabaiBinaryPath, args: fullArgs)
     }
 
     @discardableResult

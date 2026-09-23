@@ -96,18 +96,140 @@ public struct MenuBarView: View {
 
             Divider()
 
-            // Feature 1: Interactive Workspace / Space Switcher
+            // Quick Window Switcher (Option D)
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+
+                TextField("Quick switch window...", text: $service.windowSearchText)
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+
+                if !service.windowSearchText.isEmpty {
+                    Button {
+                        service.windowSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(6)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            if !service.windowSearchText.isEmpty {
+                let filteredWindows = service.allWindows.filter {
+                    $0.app.localizedCaseInsensitiveContains(service.windowSearchText) ||
+                    $0.title.localizedCaseInsensitiveContains(service.windowSearchText)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Matching Windows (\(filteredWindows.count))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    if filteredWindows.isEmpty {
+                        Text("No matching windows found")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 4) {
+                                ForEach(filteredWindows) { win in
+                                    Button {
+                                        service.focusWindow(id: win.id, space: win.space)
+                                        service.windowSearchText = ""
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            if let icon = service.appIcon(for: win.app) {
+                                                Image(nsImage: icon)
+                                                    .resizable()
+                                                    .frame(width: 16, height: 16)
+                                            } else {
+                                                Image(systemName: "macwindow")
+                                                    .frame(width: 16, height: 16)
+                                            }
+
+                                            VStack(alignment: .leading, spacing: 1) {
+                                                Text(win.app)
+                                                    .font(.caption)
+                                                    .fontWeight(.semibold)
+                                                    .lineLimit(1)
+                                                if !win.title.isEmpty {
+                                                    Text(win.title)
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
+
+                                            Spacer()
+
+                                            Text("S\(win.space)")
+                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 2)
+                                                .background(win.space == service.activeSpaceIndex ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.15))
+                                                .foregroundStyle(win.space == service.activeSpaceIndex ? Color.accentColor : Color.primary)
+                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        }
+                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 6)
+                                        .background(Color(nsColor: .controlBackgroundColor))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 160)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Feature 1: Interactive Workspace / Space Switcher (Option C)
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("Workspaces")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
+
                     Spacer()
-                    Text("Space \(service.activeSpaceIndex)")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.accentColor)
+
+                    HStack(spacing: 4) {
+                        Button {
+                            service.switchToPreviousSpace()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Previous Space")
+
+                        Text("Space \(service.activeSpaceIndex)")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.accentColor)
+
+                        Button {
+                            service.switchToNextSpace()
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Next Space")
+                    }
                 }
 
                 HStack(spacing: 6) {
