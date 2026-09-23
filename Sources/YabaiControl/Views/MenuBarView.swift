@@ -64,6 +64,12 @@ public struct MenuBarView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.mini)
+
+                    Button("Already Granted") {
+                        service.acknowledgeAccessibilityPermission()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
                 }
                 .padding(6)
                 .background(Color.orange.opacity(0.12))

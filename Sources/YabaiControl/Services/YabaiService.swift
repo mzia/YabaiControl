@@ -136,14 +136,27 @@ public class YabaiService: ObservableObject {
     }
 
     public func checkAccessibility() {
+        // 1. Check user acknowledgment in UserDefaults
+        if UserDefaults.standard.bool(forKey: "hasAccessibilityPermissionAcknowledged") {
+            hasAccessibilityPermission = true
+            return
+        }
+
+        // 2. Standard macOS Accessibility API
         if AXIsProcessTrusted() {
             hasAccessibilityPermission = true
             return
         }
 
-        // If YabaiControl was ad-hoc re-signed or run under a launcher, check if
-        // the active yabai window manager daemon itself has Accessibility access
-        if isYabaiInstalled {
+        // 3. Test macOS Accessibility Subsystem via System Events probe
+        let sysEventsCheck = runCommand("/usr/bin/osascript", args: ["-e", "tell application \"System Events\" to return true"])
+        if sysEventsCheck.status == 0 && sysEventsCheck.output.trimmingCharacters(in: .whitespacesAndNewlines) == "true" {
+            hasAccessibilityPermission = true
+            return
+        }
+
+        // 4. Check if yabai is running and responding to space queries
+        if isYabaiInstalled && isYabaiRunning {
             let res = runCommand(yabaiBinaryPath, args: ["-m", "query", "--spaces"])
             if res.status == 0 && !res.output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 hasAccessibilityPermission = true
@@ -152,6 +165,17 @@ public class YabaiService: ObservableObject {
         }
 
         hasAccessibilityPermission = false
+    }
+
+    public func acknowledgeAccessibilityPermission() {
+        UserDefaults.standard.set(true, forKey: "hasAccessibilityPermissionAcknowledged")
+        hasAccessibilityPermission = true
+        statusMessage = "Accessibility permission confirmed."
+    }
+
+    public func resetAccessibilityPermissionCheck() {
+        UserDefaults.standard.removeObject(forKey: "hasAccessibilityPermissionAcknowledged")
+        checkAccessibility()
     }
 
     public func checkRunningState() {
