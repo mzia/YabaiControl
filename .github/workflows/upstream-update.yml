@@ -1,4 +1,4 @@
-name: Upstream Dependency Check & Automated PR
+name: "Upstream Dependency Check & Automated PR"
 
 on:
   schedule:
@@ -19,9 +19,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Select Xcode Version
+      - name: Setup Xcode 16 (Swift 6)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '^16.0'
+
+      - name: Verify Swift & Xcode Version
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
           swift --version
 
       - name: Read Current Upstream Tracking Versions
@@ -86,6 +91,8 @@ jobs:
         run: |
           NEW_YABAI="${{ steps.latest_versions.outputs.latest_yabai }}"
           NEW_SKHD="${{ steps.latest_versions.outputs.latest_skhd }}"
+          OLD_YABAI="${{ steps.current_versions.outputs.current_yabai }}"
+          OLD_SKHD="${{ steps.current_versions.outputs.current_skhd }}"
           BRANCH_NAME="chore/bump-upstream-${NEW_YABAI}-${NEW_SKHD}"
 
           git config user.name "github-actions[bot]"
@@ -96,25 +103,25 @@ jobs:
           git commit -m "chore(deps): update upstream yabai to ${NEW_YABAI}, skhd to ${NEW_SKHD}"
           git push -u origin "${BRANCH_NAME}"
 
-          PR_TITLE="chore(deps): bump upstream yabai to ${NEW_YABAI} and skhd to ${NEW_SKHD}"
-          PR_BODY="### Upstream Dependency Update
+          cat << EOF > /tmp/pr_description.md
+          ### Upstream Dependency Update
 
-This automated Pull Request updates the upstream dependencies of **YabaiControl**:
+          This automated Pull Request updates the upstream dependencies of **YabaiControl**:
 
-- **yabai**: \`${{ steps.current_versions.outputs.current_yabai }}\` $\\rightarrow$ \`${NEW_YABAI}\` ([Release Notes](https://github.com/asmvik/yabai/releases/tag/${NEW_YABAI}))
-- **skhd**: \`${{ steps.current_versions.outputs.current_skhd }}\` $\\rightarrow$ \`${NEW_SKHD}\` ([Commits](https://github.com/asmvik/skhd/commits/${NEW_SKHD}))
+          - **yabai**: \`${OLD_YABAI}\` -> \`${NEW_YABAI}\` ([Release Notes](https://github.com/asmvik/yabai/releases/tag/${NEW_YABAI}))
+          - **skhd**: \`${OLD_SKHD}\` -> \`${NEW_SKHD}\` ([Commits](https://github.com/asmvik/skhd/commits/${NEW_SKHD}))
 
-### Automated CI Verification Passed
-- [x] Downloaded and compiled upstream binaries on macOS
-- [x] Verified binary ad-hoc codesigning and \`--version\` smoke tests
-- [x] Passed all Swift unit and integration tests (\`swift test\`)
-- [x] Successfully packaged \`.pkg\` and \`.dmg\` distributables
+          ### Automated CI Verification Passed
+          - [x] Downloaded and compiled upstream binaries on macOS
+          - [x] Verified binary ad-hoc codesigning and \`--version\` smoke tests
+          - [x] Passed all Swift unit and integration tests (\`swift test\`)
+          - [x] Successfully packaged \`.pkg\` and \`.dmg\` distributables
 
-> [!IMPORTANT]
-> In accordance with project policy, this PR will not be automatically merged. Please review and provide your explicit merge command when ready."
+          > In accordance with project policy, this PR will not be automatically merged. Please review and provide your explicit merge command when ready.
+          EOF
 
           gh pr create \
             --base main \
             --head "${BRANCH_NAME}" \
-            --title "${PR_TITLE}" \
-            --body "${PR_BODY}"
+            --title "chore(deps): bump upstream yabai to ${NEW_YABAI} and skhd to ${NEW_SKHD}" \
+            --body-file /tmp/pr_description.md
