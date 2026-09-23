@@ -489,8 +489,8 @@ public struct SettingsView: View {
 
                     Spacer()
 
-                    Button("Verify Again") {
-                        service.checkAccessibility()
+                    Button("Re-check") {
+                        service.resetAccessibilityPermissionCheck()
                     }
                     .controlSize(.small)
                 }
@@ -514,6 +514,12 @@ public struct SettingsView: View {
                         Button("Open Accessibility Settings") {
                             service.openAccessibilitySettings()
                         }
+                        .controlSize(.small)
+
+                        Button("I've Already Granted Access") {
+                            service.acknowledgeAccessibilityPermission()
+                        }
+                        .buttonStyle(.borderedProminent)
                         .controlSize(.small)
 
                         Button("Check Again") {

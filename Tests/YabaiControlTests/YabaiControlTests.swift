@@ -394,3 +394,28 @@ struct UpdateAndRestartTests {
         #expect(service.isUpdateAvailable == false)
     }
 }
+
+@Suite("Accessibility Permission Verification Tests")
+@MainActor
+struct AccessibilityPermissionTests {
+
+    @Test("acknowledgeAccessibilityPermission confirms permission and persists")
+    func testAcknowledgeAccessibilityPermission() {
+        let service = YabaiService.shared
+
+        service.acknowledgeAccessibilityPermission()
+        #expect(service.hasAccessibilityPermission == true)
+        #expect(UserDefaults.standard.bool(forKey: "hasAccessibilityPermissionAcknowledged") == true)
+    }
+
+    @Test("resetAccessibilityPermissionCheck clears acknowledgment and re-runs check")
+    func testResetAccessibilityPermissionCheck() {
+        let service = YabaiService.shared
+
+        service.acknowledgeAccessibilityPermission()
+        #expect(UserDefaults.standard.bool(forKey: "hasAccessibilityPermissionAcknowledged") == true)
+
+        service.resetAccessibilityPermissionCheck()
+        #expect(UserDefaults.standard.object(forKey: "hasAccessibilityPermissionAcknowledged") == nil)
+    }
+}

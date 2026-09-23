@@ -94,9 +94,9 @@ cat <<EOF > "${CONTENTS_DIR}/Info.plist"
 </plist>
 EOF
 
-# Ad-hoc code sign for macOS local execution
+# Ad-hoc code sign for macOS local execution with stable designated requirement
 echo "==> [4/4] Ad-hoc signing app bundle and embedded binaries..."
-codesign --force --deep --sign - "${APP_BUNDLE}" 2>/dev/null || true
+codesign --force --deep --sign - -r='designated => identifier "com.mzia.YabaiControl"' "${APP_BUNDLE}" 2>/dev/null || codesign --force --deep --sign - "${APP_BUNDLE}" 2>/dev/null || true
 
 echo "=================================================================="
 echo " Successfully packaged self-contained ${APP_BUNDLE}!"
