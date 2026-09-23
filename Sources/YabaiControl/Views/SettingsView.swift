@@ -444,13 +444,17 @@ public struct SettingsView: View {
                     name: "yabai (Tiling Engine)",
                     isInstalled: service.isYabaiInstalled,
                     isBundled: service.isYabaiBundled,
-                    isRunning: service.isYabaiRunning
+                    isRunning: service.isYabaiRunning,
+                    onStart: { service.startYabai() },
+                    onRestart: { service.restartYabai() }
                 )
                 daemonCard(
                     name: "skhd (Hotkey Daemon)",
                     isInstalled: service.isSkhdInstalled,
                     isBundled: service.isSkhdBundled,
-                    isRunning: service.isSkhdRunning
+                    isRunning: service.isSkhdRunning,
+                    onStart: { service.startSkhd() },
+                    onRestart: { service.restartSkhd() }
                 )
             }
 
@@ -712,9 +716,22 @@ public struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func daemonCard(name: String, isInstalled: Bool, isBundled: Bool, isRunning: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(name).font(.subheadline).bold()
+    private func daemonCard(
+        name: String,
+        isInstalled: Bool,
+        isBundled: Bool,
+        isRunning: Bool,
+        onStart: @escaping () -> Void,
+        onRestart: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(name).font(.subheadline).bold()
+                Spacer()
+                Circle()
+                    .fill(isRunning ? Color.green : Color.red)
+                    .frame(width: 8, height: 8)
+            }
             HStack(spacing: 6) {
                 Text(isBundled ? "Embedded Bundle" : (isInstalled ? "System / Homebrew" : "Not Installed"))
                     .font(.caption2)
@@ -723,6 +740,24 @@ public struct SettingsView: View {
                 Text(isRunning ? "Running" : "Stopped")
                     .font(.caption2)
                     .foregroundStyle(isRunning ? .green : .secondary)
+            }
+            if isInstalled {
+                HStack(spacing: 6) {
+                    if !isRunning {
+                        Button("Start") {
+                            onStart()
+                        }
+                        .controlSize(.mini)
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Restart") {
+                            onRestart()
+                        }
+                        .controlSize(.mini)
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding(12)
