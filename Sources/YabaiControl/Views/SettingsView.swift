@@ -64,6 +64,21 @@ public struct SettingsView: View {
                     Text("Default Split Ratio: \(Int(service.yabaiConfig.splitRatio * 100))%")
                     Slider(value: $service.yabaiConfig.splitRatio, in: 0.1...0.9, step: 0.05)
                 }
+
+                Toggle("Auto-Suspend Tiling for Apple Stage Manager", isOn: $service.yabaiConfig.disableTilingWithStageManager)
+                Text("Switches to native floating layout when Stage Manager is active to prevent window jitter and coordinate collisions.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if service.isStageManagerEnabled {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.cyan)
+                        Text(service.isTilingSuspendedForStageManager ? "Stage Manager is active: tiling currently suspended." : "Stage Manager is active.")
+                            .font(.caption2)
+                            .foregroundStyle(.cyan)
+                    }
+                }
             }
 
             Section(header: Text("Mouse Interaction").font(.headline)) {

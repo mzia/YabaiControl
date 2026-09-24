@@ -94,6 +94,7 @@ public struct YabaiConfig: Codable, Equatable, Sendable {
         "Finder"
     ]
     public var customRules: [YabaiRule] = YabaiRule.defaultRules
+    public var disableTilingWithStageManager: Bool = true
 
     public init() {}
 

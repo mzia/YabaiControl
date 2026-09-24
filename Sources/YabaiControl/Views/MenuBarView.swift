@@ -50,6 +50,34 @@ public struct MenuBarView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
+            if service.isTilingSuspendedForStageManager {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.3.group.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.cyan)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Stage Manager Active")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text("Tiling suspended for native OS behavior.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("Resume") {
+                        service.resumeTilingFromStageManager()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                }
+                .padding(8)
+                .background(Color.cyan.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
             if !service.hasAccessibilityPermission {
                 HStack(spacing: 6) {
                     Image(systemName: "hand.raised.fill")
