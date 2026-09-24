@@ -365,6 +365,34 @@ public class YabaiService: ObservableObject {
                 if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
                     skhdConfig.focusLeft = key
                 }
+            } else if trimmed.contains("window --focus south") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.focusDown = key
+                }
+            } else if trimmed.contains("window --focus north") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.focusUp = key
+                }
+            } else if trimmed.contains("window --focus east") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.focusRight = key
+                }
+            } else if trimmed.contains("window --swap west") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.swapLeft = key
+                }
+            } else if trimmed.contains("window --warp west") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.warpLeft = key
+                }
+            } else if trimmed.contains("window --display next") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.displayNext = key
+                }
+            } else if trimmed.contains("window --display prev") {
+                if let key = trimmed.components(separatedBy: ":").first?.components(separatedBy: "-").last?.trimmingCharacters(in: .whitespaces) {
+                    skhdConfig.displayPrev = key
+                }
             }
         }
     }

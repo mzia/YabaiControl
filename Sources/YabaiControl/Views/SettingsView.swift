@@ -253,16 +253,16 @@ public struct SettingsView: View {
 
     // MARK: - Tab 4: Shortcuts (skhd)
     private var shortcutsTabView: some View {
-        Form {
-            Section(header: Text("Keyboard Hotkeys (skhd)").font(.headline)) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header & Modifier Picker
                 HStack {
-                    Text("Primary Modifier:")
-                    Picker("", selection: $service.skhdConfig.primaryModifier) {
-                        Text("Option / Alt (Recommended)").tag("alt")
-                        Text("Command").tag("cmd")
-                        Text("Control + Option").tag("ctrl + alt")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Keyboard Hotkeys (skhd)").font(.headline)
+                        Text("Configure directional navigation, window movement, multi-display, and grid snapping shortcuts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .pickerStyle(.menu)
 
                     Spacer()
 
@@ -280,6 +280,10 @@ public struct SettingsView: View {
                             service.skhdConfig.swapDown = "j"
                             service.skhdConfig.swapUp = "k"
                             service.skhdConfig.swapRight = "l"
+                            service.skhdConfig.warpLeft = "h"
+                            service.skhdConfig.warpDown = "j"
+                            service.skhdConfig.warpUp = "k"
+                            service.skhdConfig.warpRight = "l"
                         }
                         .controlSize(.mini)
 
@@ -292,6 +296,10 @@ public struct SettingsView: View {
                             service.skhdConfig.swapDown = "down"
                             service.skhdConfig.swapUp = "up"
                             service.skhdConfig.swapRight = "right"
+                            service.skhdConfig.warpLeft = "left"
+                            service.skhdConfig.warpDown = "down"
+                            service.skhdConfig.warpUp = "up"
+                            service.skhdConfig.warpRight = "right"
                         }
                         .controlSize(.mini)
 
@@ -304,43 +312,209 @@ public struct SettingsView: View {
                             service.skhdConfig.swapDown = "s"
                             service.skhdConfig.swapUp = "w"
                             service.skhdConfig.swapRight = "d"
+                            service.skhdConfig.warpLeft = "a"
+                            service.skhdConfig.warpDown = "s"
+                            service.skhdConfig.warpUp = "w"
+                            service.skhdConfig.warpRight = "d"
                         }
                         .controlSize(.mini)
                     }
                 }
 
-                Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
-                    GridRow {
-                        Text("Focus West:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusLeft).frame(width: 50)
-
-                        Text("Focus South:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusDown).frame(width: 50)
+                HStack {
+                    Text("Primary Modifier:")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Picker("", selection: $service.skhdConfig.primaryModifier) {
+                        Text("Option / Alt (⌥) [Recommended]").tag("alt")
+                        Text("Command (⌘)").tag("cmd")
+                        Text("Control + Option (⌃⌥)").tag("ctrl + alt")
                     }
-                    GridRow {
-                        Text("Focus North:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusUp).frame(width: 50)
-
-                        Text("Focus East:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.focusRight).frame(width: 50)
-                    }
-                    GridRow {
-                        Text("Toggle Float:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.toggleFloat).frame(width: 50)
-
-                        Text("Balance Sizes:").fontWeight(.medium)
-                        TextField("", text: $service.skhdConfig.balanceSizes).frame(width: 50)
-                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 250)
                 }
+
+                Divider()
+
+                // Section 1: Directional Focus, Swap & Warp
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Directional Navigation & Window Movement")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                        GridRow {
+                            Text("Focus West:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.focusLeft).frame(width: 45)
+
+                            Text("Focus South:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.focusDown).frame(width: 45)
+
+                            Text("Focus North:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.focusUp).frame(width: 45)
+
+                            Text("Focus East:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.focusRight).frame(width: 45)
+                        }
+                    }
+
+                    Text("• Focus: [ Modifier + Key ]  |  • Swap: [ ⇧ Shift + Modifier + Key ]")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Toggle(isOn: $service.skhdConfig.enableWindowWarp) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enable Window Warp (Tree Re-Parenting)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text("Moves and re-parents window into the target branch of the BSP tree via [ ⌃ Control + Modifier + Key ].")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 2: Multi-Display & Space Navigation
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Multi-Display & Space Navigation")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("Enabled", isOn: $service.skhdConfig.enableDisplayShortcuts)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                    }
+
+                    if service.skhdConfig.enableDisplayShortcuts {
+                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                            GridRow {
+                                Text("Next Display:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.displayNext).frame(width: 45)
+
+                                Text("Prev Display:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.displayPrev).frame(width: 45)
+
+                                Text("Display 1:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.display1).frame(width: 45)
+
+                                Text("Display 2:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.display2).frame(width: 45)
+                            }
+                        }
+
+                        Text("• Move & Follow Display: [ ⌃ Control + Modifier + Key ]  |  • Focus Display: [ Modifier + Key ]")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+
+                    Toggle(isOn: $service.skhdConfig.enableSpaceFollowShortcuts) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Move Window to Next / Prev Space & Follow Focus")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text("Sends active window to next/previous workspace and follows focus via [ ⌃ Control + ⇧ Shift + ← / → ].")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 3: Screen Grid Snapping & Resizing
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Screen Grid Snapping & Resizing")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("Enabled", isOn: $service.skhdConfig.enableGridSnapping)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                    }
+
+                    if service.skhdConfig.enableGridSnapping {
+                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                            GridRow {
+                                Text("Snap Left:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.snapLeft).frame(width: 45)
+
+                                Text("Snap Right:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.snapRight).frame(width: 45)
+
+                                Text("Maximize:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.snapMaximize).frame(width: 45)
+
+                                Text("Center:").font(.caption).fontWeight(.medium)
+                                TextField("", text: $service.skhdConfig.snapCenter).frame(width: 45)
+                            }
+                        }
+
+                        Text("• Grid Snap Shortcuts: [ ⌃ Control + Modifier + Key ]")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+
+                    Toggle(isOn: $service.skhdConfig.enableWindowResize) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Fine-Grain Window Resizing")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text("Expands/shrinks active window splits in 30px steps via [ ⌘ Command + Modifier + Directional Key ].")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 4: Window Toggles & Utilities
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Window Toggles & Utilities")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                        GridRow {
+                            Text("Toggle Float:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.toggleFloat).frame(width: 45)
+
+                            Text("Toggle Split:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.toggleSplit).frame(width: 45)
+
+                            Text("Balance Sizes:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.balanceSizes).frame(width: 45)
+
+                            Text("Restart Yabai:").font(.caption).fontWeight(.medium)
+                            TextField("", text: $service.skhdConfig.restartYabai).frame(width: 45)
+                        }
+                    }
+
+                    Text("• Toggles: [ Modifier + Key ]  |  • Restart Yabai: [ ⇧ Shift + Modifier + Key ]")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                saveButton
             }
-
-            Text("Tip: Window swap/move shortcuts automatically map to [ Shift + Modifier + Key ].")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            saveButton
+            .padding(12)
         }
     }
 
