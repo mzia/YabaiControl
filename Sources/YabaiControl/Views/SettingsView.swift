@@ -12,15 +12,15 @@ public struct SettingsView: View {
                 .tag(0)
 
             gapsTabView
-                .tabItem { Label("Appearance & Gaps", systemImage: "slider.horizontal.2.square") }
+                .tabItem { Label("Appearance", systemImage: "slider.horizontal.2.square") }
                 .tag(1)
 
             rulesTabView
-                .tabItem { Label("Window Rules", systemImage: "macwindow.on.rectangle") }
+                .tabItem { Label("Rules", systemImage: "macwindow.on.rectangle") }
                 .tag(2)
 
             shortcutsTabView
-                .tabItem { Label("Keybindings", systemImage: "keyboard") }
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
                 .tag(3)
 
             enhancementsTabView
@@ -36,7 +36,7 @@ public struct SettingsView: View {
                 .tag(4)
         }
         .padding(20)
-        .frame(minWidth: 620, minHeight: 480)
+        .frame(minWidth: 760, idealWidth: 780, minHeight: 520, idealHeight: 560)
         .confirmationDialog(
             "Uninstall YabaiControl?",
             isPresented: $service.showUninstallAlert,
