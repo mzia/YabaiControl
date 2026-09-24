@@ -667,3 +667,154 @@ struct DaemonServiceManagementTests {
         #expect(signalArg == "-USR1")
     }
 }
+
+@Suite("Window Rule Builder Tests")
+struct WindowRuleBuilderTests {
+    @Test("YabaiRule command line generation")
+    func testRuleCommandLine() {
+        let rule = YabaiRule(
+            app: "Slack",
+            title: "Huddle",
+            space: 3,
+            display: 1,
+            manage: false,
+            sticky: true,
+            subLayer: "above"
+        )
+
+        let args = rule.commandArguments
+        #expect(args.contains("app=^Slack$"))
+        #expect(args.contains("title=^Huddle$"))
+        #expect(args.contains("space=3"))
+        #expect(args.contains("display=1"))
+        #expect(args.contains("manage=off"))
+        #expect(args.contains("sticky=on"))
+        #expect(args.contains("sub-layer=above"))
+
+        let line = rule.ruleLine
+        #expect(line.hasPrefix("yabai -m rule --add"))
+        #expect(line.contains("app=\"^Slack$\""))
+        #expect(line.contains("manage=off"))
+    }
+
+    @Test("YabaiRule summary text generation")
+    func testRuleSummary() {
+        let tileRule = YabaiRule(app: "Terminal", space: 2, manage: true)
+        let summary = tileRule.summaryText
+        #expect(summary.contains("Space 2"))
+        #expect(summary.contains("Tiled"))
+
+        let stickyRule = YabaiRule(title: "PIP", sticky: true, subLayer: "above")
+        let stickySummary = stickyRule.summaryText
+        #expect(stickySummary.contains("Sticky"))
+        #expect(stickySummary.contains("Layer: above"))
+    }
+
+    @Test("YabaiConfig includes custom rules in generated yabairc")
+    func testCustomRulesInYabairc() {
+        var config = YabaiConfig()
+        config.customRules = [
+            YabaiRule(app: "Obsidian", space: 4, manage: true),
+            YabaiRule(app: "Calculator", manage: false)
+        ]
+
+        let yabairc = config.generateYabairc()
+        #expect(yabairc.contains("yabai -m rule --add app=\"^Obsidian$\" space=4 manage=on"))
+        #expect(yabairc.contains("yabai -m rule --add app=\"^Calculator$\" manage=off"))
+    }
+
+    @Test("Default rules presets are populated and valid")
+    func testDefaultRules() {
+        let defaults = YabaiRule.defaultRules
+        #expect(!defaults.isEmpty)
+        #expect(defaults.contains(where: { $0.app == "Calculator" && $0.manage == false }))
+        #expect(defaults.contains(where: { $0.title == "Picture in Picture" && $0.sticky == true }))
+    }
+
+    @Test("YabaiService adds, toggles, and removes custom rules safely")
+    @MainActor
+    func testRuleManagementInService() {
+        let service = YabaiService.shared
+        let initialCount = service.yabaiConfig.customRules.count
+
+        let newRule = YabaiRule(app: "TestApp", space: 5, manage: false)
+        service.addCustomRule(newRule)
+        #expect(service.yabaiConfig.customRules.count == initialCount + 1)
+
+        service.toggleCustomRule(id: newRule.id)
+        let updated = service.yabaiConfig.customRules.first { $0.id == newRule.id }
+        #expect(updated?.isEnabled == false)
+
+        service.removeCustomRule(id: newRule.id)
+        #expect(service.yabaiConfig.customRules.count == initialCount)
+    }
+}
+
+@Suite("Appearance, Shadows & Inactive Dimming Tests")
+struct AppearanceAndDimmingTests {
+    @Test("WindowShadowMode display names and yabai values")
+    func testShadowModes() {
+        #expect(WindowShadowMode.float.rawValue == "float")
+        #expect(WindowShadowMode.on.rawValue == "on")
+        #expect(WindowShadowMode.off.rawValue == "off")
+
+        #expect(WindowShadowMode.float.displayName == "Floating Only (float)")
+        #expect(WindowShadowMode.on.displayName == "All Windows (on)")
+        #expect(WindowShadowMode.off.displayName == "Disabled (off)")
+    }
+
+    @Test("generateYabairc outputs appearance and feedback color settings")
+    func testAppearanceInYabairc() {
+        var config = YabaiConfig()
+        config.windowShadow = .float
+        config.insertFeedbackColor = "0xffbd93f9"
+        config.windowOpacityDuration = 0.25
+        config.windowOpacity = true
+        config.activeOpacity = 0.98
+        config.normalOpacity = 0.80
+
+        let yabairc = config.generateYabairc()
+        #expect(yabairc.contains("yabai -m config window_shadow float"))
+        #expect(yabairc.contains("yabai -m config insert_feedback_color 0xffbd93f9"))
+        #expect(yabairc.contains("yabai -m config window_opacity_duration 0.25"))
+        #expect(yabairc.contains("yabai -m config window_opacity on"))
+        #expect(yabairc.contains("yabai -m config active_window_opacity 0.98"))
+        #expect(yabairc.contains("yabai -m config normal_window_opacity 0.80"))
+    }
+}
+
+@Suite("Shortcut Conflict Detector Tests")
+struct ShortcutConflictDetectorTests {
+    @Test("Detects conflict with macOS Spotlight")
+    func testSpotlightConflict() {
+        let conflict = ShortcutConflictDetector.checkConflict(modifier: "cmd", key: "space")
+        #expect(conflict == "Spotlight Search")
+    }
+
+    @Test("Detects conflict with macOS App Switcher")
+    func testAppSwitcherConflict() {
+        let conflict = ShortcutConflictDetector.checkConflict(modifier: "cmd", key: "tab")
+        #expect(conflict == "macOS App Switcher")
+    }
+
+    @Test("Detects conflict with Alfred / Raycast")
+    func testAlfredConflict() {
+        let conflict = ShortcutConflictDetector.checkConflict(modifier: "alt", key: "space")
+        #expect(conflict == "Alfred / Raycast / Launcher")
+    }
+
+    @Test("Detects conflict with Mission Control")
+    func testMissionControlConflict() {
+        let conflict = ShortcutConflictDetector.checkConflict(modifier: "ctrl", key: "up")
+        #expect(conflict == "Mission Control")
+    }
+
+    @Test("Allows safe window manager key combinations without conflict")
+    func testSafeShortcutsPass() {
+        #expect(ShortcutConflictDetector.checkConflict(modifier: "alt", key: "h") == nil)
+        #expect(ShortcutConflictDetector.checkConflict(modifier: "alt", key: "j") == nil)
+        #expect(ShortcutConflictDetector.checkConflict(modifier: "ctrl + alt", key: "r") == nil)
+        #expect(ShortcutConflictDetector.checkConflict(modifier: "cmd + alt", key: "right") == nil)
+    }
+}
+
