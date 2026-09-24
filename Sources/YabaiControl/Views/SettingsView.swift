@@ -23,6 +23,10 @@ public struct SettingsView: View {
                 .tabItem { Label("Keybindings", systemImage: "keyboard") }
                 .tag(3)
 
+            enhancementsTabView
+                .tabItem { Label("Enhancements", systemImage: "wand.and.stars") }
+                .tag(6)
+
             profilesTabView
                 .tabItem { Label("Profiles", systemImage: "sparkles.rectangle.stack") }
                 .tag(5)
@@ -820,6 +824,194 @@ public struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                saveButton
+            }
+            .padding(12)
+        }
+    }
+
+    // MARK: - Tab: Enhancements & Advanced Experience
+    private var enhancementsTabView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enhancements & Advanced Experience")
+                        .font(.headline)
+                    Text("Next-generation tiling HUD, Aero snap trigger zones, dropdown scratchpads, and display aspect-ratio auto-tuning.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // 1. Dynamic Notch & Tiling HUD
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "capsule")
+                            .foregroundStyle(Color.accentColor)
+                        Text("Dynamic Notch & Tiling HUD")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("", isOn: $service.yabaiConfig.enableNotchHUD)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .onChange(of: service.yabaiConfig.enableNotchHUD) { _, _ in
+                                service.applyLiveSettings()
+                            }
+                    }
+
+                    Text("Floating capsule HUD widget hugging the MacBook camera notch (or top-center on external monitors) showing active window, app icon, space index, and tiling layout with automatic fade-out.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if service.yabaiConfig.enableNotchHUD {
+                        HStack {
+                            Button("Test HUD Notification") {
+                                service.triggerNotchHUD()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // 2. Screen Edge Snapping (macOS Aero Snap)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "rectangle.split.2x1")
+                            .foregroundStyle(Color.accentColor)
+                        Text("Screen Edge Snapping (Aero Snap)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("", isOn: $service.yabaiConfig.enableEdgeSnapping)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .onChange(of: service.yabaiConfig.enableEdgeSnapping) { _, _ in
+                                service.applyLiveSettings()
+                            }
+                    }
+
+                    Text("Detects when cursor drags near screen boundaries or corners, displays a translucent snapping preview box, and snaps the window to halves, quarters, or full screen upon mouse release.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // 3. Global Window Scratchpad Drawer
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "terminal")
+                            .foregroundStyle(Color.accentColor)
+                        Text("Global Window Scratchpad Drawer")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("", isOn: $service.yabaiConfig.enableScratchpad)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                    }
+
+                    Text("Summons a dedicated application window as a slide-down or floating drawer across all workspaces using yabai sticky & above sublayer positioning.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if service.yabaiConfig.enableScratchpad {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Scratchpad Application:")
+                                    .font(.caption)
+                                    .frame(width: 140, alignment: .leading)
+                                TextField("App Name (e.g. Terminal, Notes, Slack)", text: $service.yabaiConfig.scratchpadApp)
+                                    .textFieldStyle(.roundedBorder)
+                                    .controlSize(.small)
+                            }
+
+                            HStack {
+                                Text("Drawer Placement & Size:")
+                                    .font(.caption)
+                                    .frame(width: 140, alignment: .leading)
+                                Picker("", selection: $service.yabaiConfig.scratchpadPreset) {
+                                    ForEach(ScratchpadSizePreset.allCases) { preset in
+                                        Text(preset.rawValue).tag(preset)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .controlSize(.small)
+                            }
+
+                            HStack {
+                                Button("Toggle Scratchpad Now") {
+                                    service.toggleScratchpad()
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // 4. Display Aspect-Ratio Auto-Tuning
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "display.2")
+                            .foregroundStyle(Color.accentColor)
+                        Text("Display Aspect-Ratio Auto-Tuning")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Toggle("", isOn: $service.yabaiConfig.autoTuneDisplayLayouts)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .onChange(of: service.yabaiConfig.autoTuneDisplayLayouts) { _, _ in
+                                service.handleDisplayChange()
+                            }
+                    }
+
+                    Text("Detects physical screen aspect ratio (Ultrawide 21:9/32:9 vs Portrait vs Standard 16:10) and automatically applies optimal side margins so ultrawide screens avoid overly wide single windows.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if service.yabaiConfig.autoTuneDisplayLayouts {
+                        let currentProfile = DisplayTuningService.currentPrimaryDisplayProfile()
+                        HStack(spacing: 6) {
+                            Image(systemName: currentProfile.iconName)
+                                .foregroundStyle(Color.accentColor)
+                            Text("Current Primary Display Profile: \(currentProfile.rawValue)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+
+                        HStack {
+                            Text("Ultrawide Side Margins: \(service.yabaiConfig.ultrawideSidePadding)px")
+                                .font(.caption)
+                                .frame(width: 180, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(service.yabaiConfig.ultrawideSidePadding) },
+                                set: {
+                                    service.yabaiConfig.ultrawideSidePadding = Int($0)
+                                    service.handleDisplayChange()
+                                }
+                            ), in: 20...120, step: 4)
+                        }
+
+                        HStack {
+                            Button("Re-detect & Tune Margins") {
+                                service.handleDisplayChange()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+                .padding(12)
                 .background(Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 

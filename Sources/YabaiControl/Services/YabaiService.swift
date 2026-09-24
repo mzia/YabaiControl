@@ -144,6 +144,8 @@ public class YabaiService: ObservableObject {
     }
 
     nonisolated(unsafe) private var workspaceObservers: [NSObjectProtocol] = []
+    nonisolated(unsafe) private var mouseDragMonitor: Any?
+    nonisolated(unsafe) private var mouseUpMonitor: Any?
 
     private init() {
         checkInstallations()
@@ -153,7 +155,9 @@ public class YabaiService: ObservableObject {
         querySpaces()
         checkScriptingAddition()
         checkStageManagerStatus()
+        handleDisplayChange()
         setupEventObservers()
+        updateMouseSnappingMonitors()
 
         // Low-power background heartbeat with timer coalescing (App Nap friendly)
         let heartbeat = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in
@@ -214,6 +218,7 @@ public class YabaiService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.handleDisplayChange()
                 self?.querySpaces()
             }
         }
@@ -484,6 +489,9 @@ public class YabaiService: ObservableObject {
         if isSkhdRunning {
             runCommand("/usr/bin/killall", args: ["-USR1", "skhd"])
         }
+
+        NotchHUDManager.shared.isEnabled = yabaiConfig.enableNotchHUD
+        updateMouseSnappingMonitors()
     }
 
     // MARK: - Service Control
@@ -672,6 +680,7 @@ public class YabaiService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.querySpaces()
             self.queryWindows()
+            self.triggerNotchHUD()
         }
     }
 
@@ -713,6 +722,9 @@ public class YabaiService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.querySpaces()
             self.queryWindows()
+            if let target = self.allWindows.first(where: { $0.id == id }) {
+                self.triggerNotchHUD(for: target)
+            }
         }
     }
 
@@ -721,6 +733,93 @@ public class YabaiService: ObservableObject {
     public func snapActiveWindow(to position: WindowSnapPosition) {
         runYabaiCommand(["window", "--grid", position.gridCommand])
         statusMessage = "Snapped window to \(position.rawValue)."
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            self.queryWindows()
+            self.triggerNotchHUD()
+        }
+    }
+
+    // MARK: - Advanced Experience Features
+
+    public func triggerNotchHUD(for window: YabaiWindow? = nil) {
+        guard yabaiConfig.enableNotchHUD else { return }
+        let target = window ?? allWindows.first(where: { $0.hasFocus })
+        if let target = target {
+            let icon = appIcon(for: target.app)
+            NotchHUDManager.shared.show(
+                appName: target.app,
+                title: target.title,
+                space: target.space,
+                layout: yabaiConfig.layout,
+                icon: icon
+            )
+        }
+    }
+
+    public func toggleScratchpad() {
+        guard yabaiConfig.enableScratchpad else { return }
+        ScratchpadService.shared.toggleScratchpad(
+            appName: yabaiConfig.scratchpadApp,
+            preset: yabaiConfig.scratchpadPreset,
+            yabaiService: self
+        )
+    }
+
+    public func handleDisplayChange() {
+        guard yabaiConfig.autoTuneDisplayLayouts else { return }
+        let profile = DisplayTuningService.currentPrimaryDisplayProfile()
+        let (leftPad, rightPad) = DisplayTuningService.recommendedSidePadding(
+            for: profile,
+            basePadding: 8,
+            ultrawidePadding: yabaiConfig.ultrawideSidePadding
+        )
+        var changed = false
+        if yabaiConfig.leftPadding != leftPad || yabaiConfig.rightPadding != rightPad {
+            yabaiConfig.leftPadding = leftPad
+            yabaiConfig.rightPadding = rightPad
+            changed = true
+        }
+        if changed {
+            applyLiveSettings()
+            statusMessage = "Auto-tuned margins for \(profile.rawValue) display."
+        }
+    }
+
+    public func updateMouseSnappingMonitors() {
+        if yabaiConfig.enableEdgeSnapping {
+            EdgeSnappingService.shared.isEnabled = true
+            if mouseDragMonitor == nil {
+                mouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { _ in
+                    Task { @MainActor in
+                        if YabaiService.shared.yabaiConfig.enableEdgeSnapping {
+                            EdgeSnappingService.shared.handleCursorMove(at: NSEvent.mouseLocation)
+                        }
+                    }
+                }
+            }
+            if mouseUpMonitor == nil {
+                mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in
+                    Task { @MainActor in
+                        if YabaiService.shared.yabaiConfig.enableEdgeSnapping {
+                            if let snappedPos = EdgeSnappingService.shared.commitSnap() {
+                                YabaiService.shared.snapActiveWindow(to: snappedPos)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            EdgeSnappingService.shared.isEnabled = false
+            EdgeSnappingService.shared.hidePreview()
+            if let monitor = mouseDragMonitor {
+                NSEvent.removeMonitor(monitor)
+                mouseDragMonitor = nil
+            }
+            if let monitor = mouseUpMonitor {
+                NSEvent.removeMonitor(monitor)
+                mouseUpMonitor = nil
+            }
+        }
     }
 
     // MARK: - Launch at Login (SMAppService)
@@ -1185,6 +1284,12 @@ public class YabaiService: ObservableObject {
 
     deinit {
         timer?.invalidate()
+        if let monitor = mouseDragMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = mouseUpMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         for obs in workspaceObservers {
             NotificationCenter.default.removeObserver(obs)
             NSWorkspace.shared.notificationCenter.removeObserver(obs)

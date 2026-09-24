@@ -43,4 +43,74 @@ public enum WindowSnapPosition: String, CaseIterable, Identifiable, Sendable {
         case .maximize: return "rectangle.fill"
         }
     }
+
+    /// Computes the exact target screen frame in macOS coordinates (bottom-left origin)
+    public func targetRect(in screenRect: CGRect) -> CGRect {
+        let minX = screenRect.minX
+        let minY = screenRect.minY
+        let midX = screenRect.midX
+        let midY = screenRect.midY
+        let halfW = screenRect.width / 2
+        let halfH = screenRect.height / 2
+
+        switch self {
+        case .leftHalf:
+            return CGRect(x: minX, y: minY, width: halfW, height: screenRect.height)
+        case .rightHalf:
+            return CGRect(x: midX, y: minY, width: halfW, height: screenRect.height)
+        case .topHalf:
+            return CGRect(x: minX, y: midY, width: screenRect.width, height: halfH)
+        case .bottomHalf:
+            return CGRect(x: minX, y: minY, width: screenRect.width, height: halfH)
+        case .topLeft:
+            return CGRect(x: minX, y: midY, width: halfW, height: halfH)
+        case .topRight:
+            return CGRect(x: midX, y: midY, width: halfW, height: halfH)
+        case .bottomLeft:
+            return CGRect(x: minX, y: minY, width: halfW, height: halfH)
+        case .bottomRight:
+            return CGRect(x: midX, y: minY, width: halfW, height: halfH)
+        case .center:
+            return CGRect(
+                x: minX + screenRect.width * 0.15,
+                y: minY + screenRect.height * 0.15,
+                width: screenRect.width * 0.7,
+                height: screenRect.height * 0.7
+            )
+        case .maximize:
+            return screenRect
+        }
+    }
+
+    /// Detects if a cursor position triggers a snap action along the screen boundaries
+    public static func triggerPosition(for point: CGPoint, in screenRect: CGRect, threshold: CGFloat = 20) -> WindowSnapPosition? {
+        let isNearLeft = point.x <= screenRect.minX + threshold
+        let isNearRight = point.x >= screenRect.maxX - threshold
+        let isNearTop = point.y >= screenRect.maxY - threshold
+        let isNearBottom = point.y <= screenRect.minY + threshold
+
+        // Corner zones have priority
+        if isNearTop && isNearLeft {
+            return .topLeft
+        } else if isNearTop && isNearRight {
+            return .topRight
+        } else if isNearBottom && isNearLeft {
+            return .bottomLeft
+        } else if isNearBottom && isNearRight {
+            return .bottomRight
+        }
+
+        // Edge zones
+        if isNearTop {
+            return .maximize
+        } else if isNearLeft {
+            return .leftHalf
+        } else if isNearRight {
+            return .rightHalf
+        } else if isNearBottom {
+            return .bottomHalf
+        }
+
+        return nil
+    }
 }
