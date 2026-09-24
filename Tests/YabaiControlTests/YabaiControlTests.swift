@@ -818,3 +818,87 @@ struct ShortcutConflictDetectorTests {
     }
 }
 
+@Suite("Apple Stage Manager Compatibility Tests")
+struct StageManagerCompatibilityTests {
+    @Test("StageManagerDetector evaluates preferenceReader")
+    func testStageManagerDetection() {
+        let originalReader = StageManagerDetector.preferenceReader
+        defer { StageManagerDetector.preferenceReader = originalReader }
+
+        StageManagerDetector.preferenceReader = { _, _ in true }
+        #expect(StageManagerDetector.isStageManagerEnabled() == true)
+
+        StageManagerDetector.preferenceReader = { _, _ in false }
+        #expect(StageManagerDetector.isStageManagerEnabled() == false)
+
+        StageManagerDetector.preferenceReader = { _, _ in nil }
+        #expect(StageManagerDetector.isStageManagerEnabled() == false)
+    }
+
+    @Test("Default configuration enables disableTilingWithStageManager")
+    func testConfigDefault() {
+        let config = YabaiConfig()
+        #expect(config.disableTilingWithStageManager == true)
+    }
+
+    @Test("YabaiService suspends tiling to float when Stage Manager is active")
+    @MainActor
+    func testServiceSuspendsTiling() {
+        let service = YabaiService.shared
+        let originalReader = StageManagerDetector.preferenceReader
+        defer {
+            StageManagerDetector.preferenceReader = originalReader
+            service.isTilingSuspendedForStageManager = false
+            service.isStageManagerEnabled = false
+            service.savedLayoutBeforeStageManager = nil
+        }
+
+        service.yabaiConfig.layout = .bsp
+        service.yabaiConfig.menuBarDisplayStyle = .iconAndLayout
+        service.yabaiConfig.disableTilingWithStageManager = true
+        service.isTilingSuspendedForStageManager = false
+
+        // Simulate Stage Manager turned ON
+        StageManagerDetector.preferenceReader = { _, _ in true }
+        service.checkStageManagerStatus()
+
+        #expect(service.isStageManagerEnabled == true)
+        #expect(service.isTilingSuspendedForStageManager == true)
+        #expect(service.yabaiConfig.layout == .float)
+        #expect(service.savedLayoutBeforeStageManager == .bsp)
+        #expect(service.menuBarStatusText.contains("FLOAT (STAGE)"))
+
+        // Simulate Stage Manager turned OFF
+        StageManagerDetector.preferenceReader = { _, _ in false }
+        service.checkStageManagerStatus()
+
+        #expect(service.isStageManagerEnabled == false)
+        #expect(service.isTilingSuspendedForStageManager == false)
+        #expect(service.yabaiConfig.layout == .bsp)
+        #expect(service.savedLayoutBeforeStageManager == nil)
+    }
+
+    @Test("YabaiService does not suspend if disableTilingWithStageManager is disabled")
+    @MainActor
+    func testServiceRespectsDisabledToggle() {
+        let service = YabaiService.shared
+        let originalReader = StageManagerDetector.preferenceReader
+        defer {
+            StageManagerDetector.preferenceReader = originalReader
+            service.yabaiConfig.disableTilingWithStageManager = true
+            service.isTilingSuspendedForStageManager = false
+            service.isStageManagerEnabled = false
+        }
+
+        service.yabaiConfig.layout = .stack
+        service.yabaiConfig.disableTilingWithStageManager = false
+
+        StageManagerDetector.preferenceReader = { _, _ in true }
+        service.checkStageManagerStatus()
+
+        #expect(service.isStageManagerEnabled == true)
+        #expect(service.isTilingSuspendedForStageManager == false)
+        #expect(service.yabaiConfig.layout == .stack)
+    }
+}
+

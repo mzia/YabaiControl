@@ -71,20 +71,26 @@ public class YabaiService: ObservableObject {
     @Published public var newRuleSticky: Bool = false
     @Published public var newRuleSubLayer: String = "default"
 
+    // Stage Manager Integration
+    @Published public var isStageManagerEnabled: Bool = false
+    @Published public var isTilingSuspendedForStageManager: Bool = false
+    public var savedLayoutBeforeStageManager: YabaiLayout? = nil
+
     public var menuBarIcon: String {
         yabaiConfig.layout.iconName
     }
 
     public var menuBarStatusText: String {
+        let layoutName = isTilingSuspendedForStageManager ? "FLOAT (STAGE)" : yabaiConfig.layout.rawValue.uppercased()
         switch yabaiConfig.menuBarDisplayStyle {
         case .iconOnly:
             return ""
         case .iconAndLayout:
-            return yabaiConfig.layout.rawValue.uppercased()
+            return layoutName
         case .iconAndSpace:
             return "S\(activeSpaceIndex)"
         case .iconAndBoth:
-            return "\(yabaiConfig.layout.rawValue.uppercased()) • S\(activeSpaceIndex)"
+            return "\(layoutName) • S\(activeSpaceIndex)"
         case .spacesPill:
             if spaces.isEmpty {
                 return "S\(activeSpaceIndex)"
@@ -146,16 +152,18 @@ public class YabaiService: ObservableObject {
         loadConfigs()
         querySpaces()
         checkScriptingAddition()
+        checkStageManagerStatus()
         setupEventObservers()
 
         // Low-power background heartbeat with timer coalescing (App Nap friendly)
-        let heartbeat = Timer(timeInterval: 20.0, repeats: true) { [weak self] _ in
+        let heartbeat = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
+                self?.checkStageManagerStatus()
                 self?.checkRunningState()
                 self?.checkTrashStatus()
             }
         }
-        heartbeat.tolerance = 5.0
+        heartbeat.tolerance = 1.0
         RunLoop.main.add(heartbeat, forMode: .common)
         self.timer = heartbeat
     }
@@ -170,6 +178,7 @@ public class YabaiService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.checkStageManagerStatus()
                 self?.querySpaces()
             }
         }
@@ -227,6 +236,7 @@ public class YabaiService: ObservableObject {
         checkInstallations()
         checkRunningState()
         checkAccessibility()
+        checkStageManagerStatus()
         querySpaces()
         queryWindows()
         checkLaunchAtLoginStatus()
@@ -450,7 +460,8 @@ public class YabaiService: ObservableObject {
 
     public func applyLiveSettings() {
         guard isYabaiRunning else { return }
-        runYabaiCommand(["config", "layout", yabaiConfig.layout.rawValue])
+        let targetLayout = isTilingSuspendedForStageManager ? "float" : yabaiConfig.layout.rawValue
+        runYabaiCommand(["config", "layout", targetLayout])
         runYabaiCommand(["config", "window_gap", "\(yabaiConfig.windowGap)"])
         runYabaiCommand(["config", "top_padding", "\(yabaiConfig.topPadding)"])
         runYabaiCommand(["config", "bottom_padding", "\(yabaiConfig.bottomPadding)"])
@@ -1011,6 +1022,45 @@ public class YabaiService: ObservableObject {
         if let idx = yabaiConfig.customRules.firstIndex(where: { $0.id == id }) {
             yabaiConfig.customRules[idx].isEnabled.toggle()
             statusMessage = "Window rule \(yabaiConfig.customRules[idx].isEnabled ? "enabled" : "disabled")."
+        }
+    }
+
+    // MARK: - Apple Stage Manager Compatibility
+
+    public func checkStageManagerStatus() {
+        let isEnabled = StageManagerDetector.isStageManagerEnabled()
+        self.isStageManagerEnabled = isEnabled
+
+        guard yabaiConfig.disableTilingWithStageManager else {
+            if isTilingSuspendedForStageManager {
+                resumeTilingFromStageManager()
+            }
+            return
+        }
+
+        if isEnabled && !isTilingSuspendedForStageManager {
+            if yabaiConfig.layout != .float {
+                savedLayoutBeforeStageManager = yabaiConfig.layout
+                yabaiConfig.layout = .float
+                isTilingSuspendedForStageManager = true
+                statusMessage = "Stage Manager active: tiling suspended for native OS behavior."
+                if isYabaiRunning {
+                    _ = runYabaiCommand(["config", "layout", "float"])
+                }
+            }
+        } else if !isEnabled && isTilingSuspendedForStageManager {
+            resumeTilingFromStageManager()
+        }
+    }
+
+    public func resumeTilingFromStageManager() {
+        let restoredLayout = savedLayoutBeforeStageManager ?? .bsp
+        isTilingSuspendedForStageManager = false
+        yabaiConfig.layout = restoredLayout
+        savedLayoutBeforeStageManager = nil
+        statusMessage = "Stage Manager deactivated: restored \(restoredLayout.displayName) tiling."
+        if isYabaiRunning {
+            _ = runYabaiCommand(["config", "layout", restoredLayout.rawValue])
         }
     }
 
