@@ -16,16 +16,48 @@ public struct ShortcutMapping: Identifiable, Codable, Equatable, Sendable {
 public struct SKHDConfig: Codable, Equatable, Sendable {
     public var primaryModifier: String = "alt" // alt = Option
 
+    // 1. Focus navigation
     public var focusLeft: String = "h"
     public var focusDown: String = "j"
     public var focusUp: String = "k"
     public var focusRight: String = "l"
 
+    // 2. Window Swap (Exchange nodes)
     public var swapLeft: String = "h"
     public var swapDown: String = "j"
     public var swapUp: String = "k"
     public var swapRight: String = "l"
 
+    // 3. Window Warp (Re-parent into BSP tree branch)
+    public var enableWindowWarp: Bool = true
+    public var warpLeft: String = "h"
+    public var warpDown: String = "j"
+    public var warpUp: String = "k"
+    public var warpRight: String = "l"
+
+    // 4. Multi-Display Management
+    public var enableDisplayShortcuts: Bool = true
+    public var displayNext: String = "n"
+    public var displayPrev: String = "p"
+    public var display1: String = "1"
+    public var display2: String = "2"
+
+    // 5. Grid Snapping (Halves, Maximize, Center)
+    public var enableGridSnapping: Bool = true
+    public var snapLeft: String = "left"
+    public var snapRight: String = "right"
+    public var snapMaximize: String = "m"
+    public var snapCenter: String = "c"
+
+    // 6. Workspace Move & Follow
+    public var enableSpaceFollowShortcuts: Bool = true
+    public var spaceNext: String = "right"
+    public var spacePrev: String = "left"
+
+    // 7. Window Resizing
+    public var enableWindowResize: Bool = true
+
+    // 8. Window Toggles & Actions
     public var toggleFloat: String = "t"
     public var toggleSplit: String = "e"
     public var balanceSizes: String = "b"
@@ -50,6 +82,46 @@ public struct SKHDConfig: Codable, Equatable, Sendable {
         lines.append("shift + \(primaryModifier) - \(swapUp) : yabai -m window --swap north")
         lines.append("shift + \(primaryModifier) - \(swapRight) : yabai -m window --swap east")
         lines.append("")
+        if enableWindowWarp {
+            lines.append("# Window Warp (Move & Re-parent in Tree)")
+            lines.append("ctrl + \(primaryModifier) - \(warpLeft) : yabai -m window --warp west")
+            lines.append("ctrl + \(primaryModifier) - \(warpDown) : yabai -m window --warp south")
+            lines.append("ctrl + \(primaryModifier) - \(warpUp) : yabai -m window --warp north")
+            lines.append("ctrl + \(primaryModifier) - \(warpRight) : yabai -m window --warp east")
+            lines.append("")
+        }
+        if enableDisplayShortcuts {
+            lines.append("# Multi-Display Movement & Focus")
+            lines.append("ctrl + \(primaryModifier) - \(displayNext) : yabai -m window --display next && yabai -m display --focus next")
+            lines.append("ctrl + \(primaryModifier) - \(displayPrev) : yabai -m window --display prev && yabai -m display --focus prev")
+            lines.append("ctrl + \(primaryModifier) - \(display1) : yabai -m window --display 1 && yabai -m display --focus 1")
+            lines.append("ctrl + \(primaryModifier) - \(display2) : yabai -m window --display 2 && yabai -m display --focus 2")
+            lines.append("\(primaryModifier) - \(displayNext) : yabai -m display --focus next")
+            lines.append("\(primaryModifier) - \(displayPrev) : yabai -m display --focus prev")
+            lines.append("")
+        }
+        if enableGridSnapping {
+            lines.append("# Window Grid Snapping (Halves, Maximize, Center)")
+            lines.append("ctrl + \(primaryModifier) - \(snapLeft) : yabai -m window --grid 1:2:0:0:1:1")
+            lines.append("ctrl + \(primaryModifier) - \(snapRight) : yabai -m window --grid 1:2:1:0:1:1")
+            lines.append("ctrl + \(primaryModifier) - \(snapMaximize) : yabai -m window --toggle zoom-fullscreen")
+            lines.append("ctrl + \(primaryModifier) - \(snapCenter) : yabai -m window --grid 4:4:1:1:2:2")
+            lines.append("")
+        }
+        if enableSpaceFollowShortcuts {
+            lines.append("# Move Window to Space & Follow Focus")
+            lines.append("ctrl + shift - \(spaceNext) : yabai -m window --space next && yabai -m space --focus next")
+            lines.append("ctrl + shift - \(spacePrev) : yabai -m window --space prev && yabai -m space --focus prev")
+            lines.append("")
+        }
+        if enableWindowResize {
+            lines.append("# Window Resizing")
+            lines.append("cmd + \(primaryModifier) - \(focusLeft) : yabai -m window --resize left:-30:0 || yabai -m window --resize right:-30:0")
+            lines.append("cmd + \(primaryModifier) - \(focusRight) : yabai -m window --resize right:30:0 || yabai -m window --resize left:30:0")
+            lines.append("cmd + \(primaryModifier) - \(focusUp) : yabai -m window --resize top:0:-30 || yabai -m window --resize bottom:0:-30")
+            lines.append("cmd + \(primaryModifier) - \(focusDown) : yabai -m window --resize bottom:0:30 || yabai -m window --resize top:0:30")
+            lines.append("")
+        }
         lines.append("# Window Toggles & Actions")
         lines.append("\(primaryModifier) - \(toggleFloat) : yabai -m window --toggle float --grid 4:4:1:1:2:2")
         lines.append("\(primaryModifier) - \(toggleSplit) : yabai -m window --toggle split")

@@ -368,10 +368,12 @@ public struct MenuBarView: View {
                 VStack(spacing: 4) {
                     shortcutRow(keys: "⌥ + H/J/K/L", action: "Focus West / South / North / East")
                     shortcutRow(keys: "⇧⌥ + H/J/K/L", action: "Swap Window Direction")
-                    shortcutRow(keys: "⌥ + T", action: "Toggle Float / Tile")
-                    shortcutRow(keys: "⌥ + E", action: "Toggle Split (H / V)")
-                    shortcutRow(keys: "⌥ + B", action: "Balance Window Sizes")
-                    shortcutRow(keys: "⌥ + 1–5", action: "Switch Workspace")
+                    shortcutRow(keys: "⌃⌥ + H/J/K/L", action: "Warp Window to Tree Node")
+                    shortcutRow(keys: "⌃⌥ + N / P", action: "Move to Next / Prev Display")
+                    shortcutRow(keys: "⌃⌥ + ← / →", action: "Snap Window Left / Right Half")
+                    shortcutRow(keys: "⌃⌥ + M", action: "Toggle Fullscreen / Zoom")
+                    shortcutRow(keys: "⌃⇧ + ← / →", action: "Move Space & Follow Focus")
+                    shortcutRow(keys: "⌥ + T / E / B", action: "Float / Split / Balance Window")
                 }
                 .padding(8)
                 .background(Color(nsColor: .controlBackgroundColor))

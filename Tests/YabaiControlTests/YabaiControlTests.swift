@@ -87,9 +87,14 @@ struct SkhdConfigTests {
         #expect(config.toggleSplit == "e")
         #expect(config.balanceSizes == "b")
         #expect(config.restartYabai == "r")
+        #expect(config.enableWindowWarp == true)
+        #expect(config.enableDisplayShortcuts == true)
+        #expect(config.enableGridSnapping == true)
+        #expect(config.enableSpaceFollowShortcuts == true)
+        #expect(config.enableWindowResize == true)
     }
 
-    @Test("generateSkhdrc produces expected shortcut bindings")
+    @Test("generateSkhdrc produces expected shortcut bindings including warp and displays")
     func testGenerateSkhdrc() {
         var config = SKHDConfig()
         config.primaryModifier = "cmd + alt"
@@ -101,12 +106,41 @@ struct SkhdConfigTests {
         #expect(script.contains("cmd + alt - k : yabai -m window --focus north"))
         #expect(script.contains("cmd + alt - l : yabai -m window --focus east"))
         #expect(script.contains("shift + cmd + alt - h : yabai -m window --swap west"))
+        #expect(script.contains("ctrl + cmd + alt - h : yabai -m window --warp west"))
+        #expect(script.contains("ctrl + cmd + alt - n : yabai -m window --display next && yabai -m display --focus next"))
+        #expect(script.contains("ctrl + cmd + alt - p : yabai -m window --display prev && yabai -m display --focus prev"))
+        #expect(script.contains("ctrl + cmd + alt - left : yabai -m window --grid 1:2:0:0:1:1"))
+        #expect(script.contains("ctrl + cmd + alt - right : yabai -m window --grid 1:2:1:0:1:1"))
+        #expect(script.contains("ctrl + cmd + alt - m : yabai -m window --toggle zoom-fullscreen"))
+        #expect(script.contains("ctrl + shift - right : yabai -m window --space next && yabai -m space --focus next"))
+        #expect(script.contains("cmd + cmd + alt - h : yabai -m window --resize left:-30:0 || yabai -m window --resize right:-30:0"))
         #expect(script.contains("cmd + alt - t : yabai -m window --toggle float --grid 4:4:1:1:2:2"))
         #expect(script.contains("cmd + alt - e : yabai -m window --toggle split"))
         #expect(script.contains("cmd + alt - b : yabai -m space --balance"))
         #expect(script.contains("shift + cmd + alt - r : yabai --restart-service"))
         #expect(script.contains("cmd + alt - 1 : yabai -m space --focus 1"))
         #expect(script.contains("shift + cmd + alt - 5 : yabai -m window --space 5"))
+    }
+
+    @Test("generateSkhdrc respects feature toggles")
+    func testSkhdFeatureToggles() {
+        var config = SKHDConfig()
+        config.enableWindowWarp = false
+        config.enableDisplayShortcuts = false
+        config.enableGridSnapping = false
+        config.enableSpaceFollowShortcuts = false
+        config.enableWindowResize = false
+
+        let script = config.generateSkhdrc()
+
+        #expect(!script.contains("--warp"))
+        #expect(!script.contains("--display"))
+        #expect(!script.contains("ctrl + alt - left : yabai -m window --grid"))
+        #expect(!script.contains("space next && yabai -m space --focus next"))
+        #expect(!script.contains("--resize"))
+        // Base bindings should remain
+        #expect(script.contains("alt - h : yabai -m window --focus west"))
+        #expect(script.contains("shift + alt - h : yabai -m window --swap west"))
     }
 }
 

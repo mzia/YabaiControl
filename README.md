@@ -40,6 +40,15 @@ A self-contained, native macOS menu bar app and GUI for **yabai** (the tiling en
 | :--- | :--- |
 | `⌥ + H / J / K / L` | Focus West / South / North / East |
 | `⇧⌥ + H / J / K / L` | Swap Window Position Directionally |
+| `⌃⌥ + H / J / K / L` | Warp Window (Move & Re-parent in Tree) |
+| `⌃⌥ + N / P` | Move Window to Next / Previous Display & Follow |
+| `⌃⌥ + 1 / 2` | Move Window to Display 1 / 2 & Follow |
+| `⌥ + N / P` | Focus Next / Previous Display |
+| `⌃⌥ + ← / →` | Snap Window to Left / Right Screen Half |
+| `⌃⌥ + M` | Toggle Fullscreen / Zoom Window |
+| `⌃⌥ + C` | Center Window Grid Float |
+| `⌃⇧ + ← / →` | Move Window to Prev / Next Space & Follow Focus |
+| `⌘⌥ + H / J / K / L` | Fine-Grain Resize Active Window (±30px) |
 | `⌥ + T` | Toggle Window between Floating & Tiled |
 | `⌥ + E` | Toggle Split Orientation (Horizontal / Vertical) |
 | `⌥ + B` | Balance Window Sizes |
