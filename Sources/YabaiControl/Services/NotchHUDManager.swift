@@ -13,11 +13,11 @@ public final class NotchHUDManager: ObservableObject {
     private var dismissTimer: Timer?
     public var isEnabled: Bool = true
 
-    public init() {
-        setupWindow()
-    }
+    public init() {}
 
-    private func setupWindow() {
+    @discardableResult
+    private func ensureHUDWindow() -> NSWindow {
+        if let window = hudWindow { return window }
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 340, height: 44),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -34,6 +34,7 @@ public final class NotchHUDManager: ObservableObject {
         let hosting = NSHostingView(rootView: NotchHUDHostingRoot(manager: self))
         panel.contentView = hosting
         self.hudWindow = panel
+        return panel
     }
 
     /// Displays the HUD for the given window, space, and layout parameters
@@ -48,19 +49,18 @@ public final class NotchHUDManager: ObservableObject {
             appIcon: icon
         )
 
+        let window = ensureHUDWindow()
         positionWindow()
 
         dismissTimer?.invalidate()
-        if let window = hudWindow {
-            if !isVisible {
-                window.alphaValue = 0.0
-                window.orderFrontRegardless()
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.2
-                    window.animator().alphaValue = 1.0
-                }
-                isVisible = true
+        if !isVisible {
+            window.alphaValue = 0.0
+            window.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                window.animator().alphaValue = 1.0
             }
+            isVisible = true
         }
 
         // Auto-fade after 2.2 seconds

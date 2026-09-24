@@ -10,11 +10,11 @@ public final class EdgeSnappingService: ObservableObject {
     private var previewWindow: NSWindow?
     public var isEnabled: Bool = true
 
-    public init() {
-        setupPreviewWindow()
-    }
+    public init() {}
 
-    private func setupPreviewWindow() {
+    @discardableResult
+    private func ensurePreviewWindow() -> NSWindow {
+        if let window = previewWindow { return window }
         let window = NSWindow(
             contentRect: .zero,
             styleMask: [.borderless],
@@ -31,6 +31,7 @@ public final class EdgeSnappingService: ObservableObject {
         let hosting = NSHostingView(rootView: SnapPreviewBoxView())
         window.contentView = hosting
         self.previewWindow = window
+        return window
     }
 
     /// Tests cursor position against screen edge boundaries and updates preview overlay
@@ -56,7 +57,7 @@ public final class EdgeSnappingService: ObservableObject {
     /// Displays the translucent snap preview overlay at the target position
     public func showPreview(for position: WindowSnapPosition, in screenRect: CGRect) {
         activePosition = position
-        guard let window = previewWindow else { return }
+        let window = ensurePreviewWindow()
 
         let rect = position.targetRect(in: screenRect)
         window.setFrame(rect, display: true, animate: false)
