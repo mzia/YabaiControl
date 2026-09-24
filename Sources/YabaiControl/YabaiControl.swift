@@ -39,6 +39,7 @@ struct YabaiControlApp: App {
             SettingsView()
                 .environmentObject(service)
         }
+        .defaultSize(width: 780, height: 560)
         .windowResizability(.contentSize)
     }
 }
