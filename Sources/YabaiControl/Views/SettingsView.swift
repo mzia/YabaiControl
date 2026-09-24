@@ -12,11 +12,11 @@ public struct SettingsView: View {
                 .tag(0)
 
             gapsTabView
-                .tabItem { Label("Gaps & Margins", systemImage: "arrow.up.and.down.and.arrow.left.and.right") }
+                .tabItem { Label("Appearance & Gaps", systemImage: "slider.horizontal.2.square") }
                 .tag(1)
 
             rulesTabView
-                .tabItem { Label("Floating Apps", systemImage: "macwindow.on.rectangle") }
+                .tabItem { Label("Window Rules", systemImage: "macwindow.on.rectangle") }
                 .tag(2)
 
             shortcutsTabView
@@ -153,13 +153,101 @@ public struct SettingsView: View {
                 }
             }
 
-            Section(header: Text("Window Opacity").font(.headline)) {
+            Section(header: Text("Window Appearance & Styling").font(.headline)) {
+                Picker("Window Shadows", selection: $service.yabaiConfig.windowShadow) {
+                    ForEach(WindowShadowMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Insertion Feedback Color:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Circle()
+                            .fill(Color(hexARGB: service.yabaiConfig.insertFeedbackColor))
+                            .frame(width: 14, height: 14)
+                        Text(service.yabaiConfig.insertFeedbackColor)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack(spacing: 6) {
+                        Text("Presets:").font(.caption2).foregroundStyle(.secondary)
+                        feedbackColorPreset(name: "Neon Green", hex: "0xff50fa7b")
+                        feedbackColorPreset(name: "Cyan", hex: "0xff8be9fd")
+                        feedbackColorPreset(name: "Purple", hex: "0xffbd93f9")
+                        feedbackColorPreset(name: "Gold", hex: "0xfff1fa8c")
+                        feedbackColorPreset(name: "Coral", hex: "0xffff5555")
+                    }
+                }
+            }
+
+            Section(header: Text("Window Opacity & Focus Dimming").font(.headline)) {
                 Toggle("Enable Inactive Window Dimming", isOn: $service.yabaiConfig.windowOpacity)
 
                 if service.yabaiConfig.windowOpacity {
-                    HStack {
-                        Text("Normal Opacity: \(Int(service.yabaiConfig.normalOpacity * 100))%")
-                        Slider(value: $service.yabaiConfig.normalOpacity, in: 0.5...1.0, step: 0.05)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Active Window Opacity: \(Int(service.yabaiConfig.activeOpacity * 100))%")
+                                .frame(width: 200, alignment: .leading)
+                            Slider(value: $service.yabaiConfig.activeOpacity, in: 0.5...1.0, step: 0.05)
+                        }
+
+                        HStack {
+                            Text("Inactive Window Opacity: \(Int(service.yabaiConfig.normalOpacity * 100))%")
+                                .frame(width: 200, alignment: .leading)
+                            Slider(value: $service.yabaiConfig.normalOpacity, in: 0.4...1.0, step: 0.05)
+                        }
+
+                        HStack {
+                            Text("Transition Duration: \(String(format: "%.2f", service.yabaiConfig.windowOpacityDuration))s")
+                                .frame(width: 200, alignment: .leading)
+                            Slider(value: $service.yabaiConfig.windowOpacityDuration, in: 0.0...0.5, step: 0.05)
+                        }
+
+                        // Live visual preview
+                        HStack(spacing: 12) {
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(nsColor: .controlAccentColor))
+                                    .opacity(service.yabaiConfig.activeOpacity)
+                                    .frame(height: 48)
+                                    .overlay(
+                                        Text("Active Window")
+                                            .font(.caption2)
+                                            .fontWeight(.bold)
+                                            .foregroundStyle(.white)
+                                    )
+                                Text("Focused (\(Int(service.yabaiConfig.activeOpacity * 100))%)")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(nsColor: .windowBackgroundColor))
+                                    .opacity(service.yabaiConfig.normalOpacity)
+                                    .frame(height: 48)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                    )
+                                    .overlay(
+                                        Text("Inactive Window")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    )
+                                Text("Dimmed (\(Int(service.yabaiConfig.normalOpacity * 100))%)")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             }
@@ -170,9 +258,219 @@ public struct SettingsView: View {
         }
     }
 
-    // MARK: - Tab 3: Floating Rules
+    // MARK: - Tab 3: Window Rules & Routing
     private var rulesTabView: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Picker("Rules Category", selection: $service.rulesSegment) {
+                Text("Custom Rules (\(service.yabaiConfig.customRules.count))").tag(0)
+                Text("Quick Floating Apps (\(service.yabaiConfig.floatingApps.count))").tag(1)
+            }
+            .pickerStyle(.segmented)
+
+            if service.rulesSegment == 0 {
+                customRulesView
+            } else {
+                quickFloatingAppsView
+            }
+
+            Spacer()
+
+            saveButton
+        }
+    }
+
+    private var customRulesView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Visual Window Routing Rules")
+                        .font(.headline)
+                    Text("Auto-assign apps and titles to specific spaces, displays, floating states, or sublayers.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    service.showingAddRuleForm.toggle()
+                } label: {
+                    Label(service.showingAddRuleForm ? "Hide Form" : "Add Rule", systemImage: service.showingAddRuleForm ? "chevron.up" : "plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button("Load Presets") {
+                    service.loadDefaultRules()
+                }
+                .controlSize(.small)
+            }
+
+            if service.showingAddRuleForm {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("New Window Rule").font(.subheadline).bold()
+
+                    HStack(spacing: 8) {
+                        TextField("App Regex (e.g. ^Slack$)", text: $service.newRuleApp)
+                            .textFieldStyle(.roundedBorder)
+
+                        TextField("Title Regex (e.g. ^Picture in Picture$)", text: $service.newRuleTitle)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    HStack(spacing: 12) {
+                        Picker("Space:", selection: $service.newRuleSpace) {
+                            Text("Any Space").tag(0)
+                            ForEach(1...10, id: \.self) { sp in
+                                Text("Space \(sp)").tag(sp)
+                            }
+                        }
+                        .frame(width: 130)
+
+                        Picker("Display:", selection: $service.newRuleDisplay) {
+                            Text("Any Display").tag(0)
+                            ForEach(1...4, id: \.self) { d in
+                                Text("Display \(d)").tag(d)
+                            }
+                        }
+                        .frame(width: 130)
+
+                        Picker("Manage:", selection: $service.newRuleManage) {
+                            Text("Default").tag(0)
+                            Text("Tile (manage=on)").tag(1)
+                            Text("Float (manage=off)").tag(2)
+                        }
+                        .frame(width: 150)
+                    }
+
+                    HStack(spacing: 12) {
+                        Picker("Sub-Layer:", selection: $service.newRuleSubLayer) {
+                            Text("Default").tag("default")
+                            Text("Below (Desktop)").tag("below")
+                            Text("Normal").tag("normal")
+                            Text("Above (Always on Top)").tag("above")
+                        }
+                        .frame(width: 170)
+
+                        Toggle("Sticky (All Spaces)", isOn: $service.newRuleSticky)
+                            .toggleStyle(.checkbox)
+
+                        Spacer()
+
+                        Button("Cancel") {
+                            service.resetNewRuleFields()
+                        }
+                        .controlSize(.small)
+
+                        Button("Save Rule") {
+                            service.commitNewRule()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(service.newRuleApp.trimmingCharacters(in: .whitespaces).isEmpty && service.newRuleTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+                .padding(10)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                )
+            }
+
+            if service.yabaiConfig.customRules.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "macwindow.badge.plus")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("No custom rules configured yet.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button("Add Default System & App Rules") {
+                        service.loadDefaultRules()
+                    }
+                    .controlSize(.small)
+                }
+                .frame(maxWidth: .infinity, maxHeight: 150)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                List {
+                    ForEach(service.yabaiConfig.customRules) { rule in
+                        ruleCard(rule)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ruleCard(_ rule: YabaiRule) -> some View {
+        HStack(spacing: 8) {
+            Toggle("", isOn: Binding(
+                get: { rule.isEnabled },
+                set: { _ in service.toggleCustomRule(id: rule.id) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    if !rule.app.isEmpty {
+                        badgeView(text: "app: \(rule.app)", color: .blue)
+                    }
+                    if !rule.title.isEmpty {
+                        badgeView(text: "title: \(rule.title)", color: .purple)
+                    }
+                    if let sp = rule.space {
+                        badgeView(text: "space \(sp)", color: .orange)
+                    }
+                    if let dp = rule.display {
+                        badgeView(text: "disp \(dp)", color: .teal)
+                    }
+                    if let mg = rule.manage {
+                        badgeView(text: mg ? "tile" : "float", color: mg ? .green : .yellow)
+                    }
+                    if rule.sticky == true {
+                        badgeView(text: "sticky", color: .indigo)
+                    }
+                    if let sub = rule.subLayer {
+                        badgeView(text: "\(sub)-layer", color: .brown)
+                    }
+                }
+
+                Text(rule.summaryText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button(role: .destructive) {
+                service.removeCustomRule(id: rule.id)
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func badgeView(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private var quickFloatingAppsView: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Floating Applications")
@@ -246,8 +544,6 @@ public struct SettingsView: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            saveButton
         }
     }
 
@@ -342,19 +638,19 @@ public struct SettingsView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
 
-                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                         GridRow {
                             Text("Focus West:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.focusLeft).frame(width: 45)
+                            ShortcutRecorderView(id: "focusLeft", key: $service.skhdConfig.focusLeft, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Focus South:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.focusDown).frame(width: 45)
+                            ShortcutRecorderView(id: "focusDown", key: $service.skhdConfig.focusDown, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Focus North:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.focusUp).frame(width: 45)
+                            ShortcutRecorderView(id: "focusUp", key: $service.skhdConfig.focusUp, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Focus East:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.focusRight).frame(width: 45)
+                            ShortcutRecorderView(id: "focusRight", key: $service.skhdConfig.focusRight, modifier: service.skhdConfig.primaryModifier, width: 62)
                         }
                     }
 
@@ -391,19 +687,19 @@ public struct SettingsView: View {
                     }
 
                     if service.skhdConfig.enableDisplayShortcuts {
-                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
                             GridRow {
                                 Text("Next Display:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.displayNext).frame(width: 45)
+                                ShortcutRecorderView(id: "displayNext", key: $service.skhdConfig.displayNext, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Prev Display:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.displayPrev).frame(width: 45)
+                                ShortcutRecorderView(id: "displayPrev", key: $service.skhdConfig.displayPrev, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Display 1:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.display1).frame(width: 45)
+                                ShortcutRecorderView(id: "display1", key: $service.skhdConfig.display1, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Display 2:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.display2).frame(width: 45)
+                                ShortcutRecorderView(id: "display2", key: $service.skhdConfig.display2, modifier: service.skhdConfig.primaryModifier, width: 62)
                             }
                         }
 
@@ -443,19 +739,19 @@ public struct SettingsView: View {
                     }
 
                     if service.skhdConfig.enableGridSnapping {
-                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
                             GridRow {
                                 Text("Snap Left:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.snapLeft).frame(width: 45)
+                                ShortcutRecorderView(id: "snapLeft", key: $service.skhdConfig.snapLeft, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Snap Right:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.snapRight).frame(width: 45)
+                                ShortcutRecorderView(id: "snapRight", key: $service.skhdConfig.snapRight, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Maximize:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.snapMaximize).frame(width: 45)
+                                ShortcutRecorderView(id: "snapMaximize", key: $service.skhdConfig.snapMaximize, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                                 Text("Center:").font(.caption).fontWeight(.medium)
-                                TextField("", text: $service.skhdConfig.snapCenter).frame(width: 45)
+                                ShortcutRecorderView(id: "snapCenter", key: $service.skhdConfig.snapCenter, modifier: service.skhdConfig.primaryModifier, width: 62)
                             }
                         }
 
@@ -488,19 +784,19 @@ public struct SettingsView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
 
-                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                    Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
                         GridRow {
                             Text("Toggle Float:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.toggleFloat).frame(width: 45)
+                            ShortcutRecorderView(id: "toggleFloat", key: $service.skhdConfig.toggleFloat, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Toggle Split:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.toggleSplit).frame(width: 45)
+                            ShortcutRecorderView(id: "toggleSplit", key: $service.skhdConfig.toggleSplit, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Balance Sizes:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.balanceSizes).frame(width: 45)
+                            ShortcutRecorderView(id: "balanceSizes", key: $service.skhdConfig.balanceSizes, modifier: service.skhdConfig.primaryModifier, width: 62)
 
                             Text("Restart Yabai:").font(.caption).fontWeight(.medium)
-                            TextField("", text: $service.skhdConfig.restartYabai).frame(width: 45)
+                            ShortcutRecorderView(id: "restartYabai", key: $service.skhdConfig.restartYabai, modifier: service.skhdConfig.primaryModifier, width: 62)
                         }
                     }
 
@@ -940,6 +1236,29 @@ public struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    @ViewBuilder
+    private func feedbackColorPreset(name: String, hex: String) -> some View {
+        Button {
+            service.yabaiConfig.insertFeedbackColor = hex
+        } label: {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color(hexARGB: hex))
+                    .frame(width: 8, height: 8)
+                Text(name)
+                    .font(.caption2)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(service.yabaiConfig.insertFeedbackColor.lowercased() == hex.lowercased() ? Color.accentColor.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
+            .clipShape(Capsule())
+            .overlay(
+                Capsule().stroke(service.yabaiConfig.insertFeedbackColor.lowercased() == hex.lowercased() ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var saveButton: some View {
         HStack {
             Text(service.statusMessage)
@@ -952,5 +1271,36 @@ public struct SettingsView: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(.top, 10)
+    }
+}
+
+extension Color {
+    init(hexARGB hex: String) {
+        var cleanHex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanHex.hasPrefix("0x") || cleanHex.hasPrefix("0X") {
+            cleanHex = String(cleanHex.dropFirst(2))
+        } else if cleanHex.hasPrefix("#") {
+            cleanHex = String(cleanHex.dropFirst(1))
+        }
+
+        var intVal: UInt64 = 0
+        Scanner(string: cleanHex).scanHexInt64(&intVal)
+
+        let a, r, g, b: Double
+        if cleanHex.count == 8 {
+            a = Double((intVal >> 24) & 0xff) / 255.0
+            r = Double((intVal >> 16) & 0xff) / 255.0
+            g = Double((intVal >> 8) & 0xff) / 255.0
+            b = Double(intVal & 0xff) / 255.0
+        } else if cleanHex.count == 6 {
+            a = 1.0
+            r = Double((intVal >> 16) & 0xff) / 255.0
+            g = Double((intVal >> 8) & 0xff) / 255.0
+            b = Double(intVal & 0xff) / 255.0
+        } else {
+            a = 1.0; r = 0.3; g = 0.8; b = 0.5
+        }
+
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
 }

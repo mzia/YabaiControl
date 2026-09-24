@@ -60,6 +60,17 @@ public class YabaiService: ObservableObject {
     @Published public var windowSearchText: String = ""
     @Published public var showUninstallAlert: Bool = false
 
+    // Rule Builder UI state
+    @Published public var rulesSegment: Int = 0 // 0: Custom Rules, 1: Quick Floating Apps
+    @Published public var showingAddRuleForm: Bool = false
+    @Published public var newRuleApp: String = ""
+    @Published public var newRuleTitle: String = ""
+    @Published public var newRuleSpace: Int = 0 // 0 = Any
+    @Published public var newRuleDisplay: Int = 0 // 0 = Any
+    @Published public var newRuleManage: Int = 0 // 0 = Default, 1 = Tile, 2 = Float
+    @Published public var newRuleSticky: Bool = false
+    @Published public var newRuleSubLayer: String = "default"
+
     public var menuBarIcon: String {
         yabaiConfig.layout.iconName
     }
@@ -353,6 +364,28 @@ public class YabaiService: ObservableObject {
                 else { yabaiConfig.focusFollowsMouse = .off }
             } else if trimmed.contains("config mouse_follows_focus") {
                 yabaiConfig.mouseFollowsFocus = trimmed.contains("on")
+            } else if trimmed.contains("config window_shadow") {
+                if trimmed.contains("off") { yabaiConfig.windowShadow = .off }
+                else if trimmed.contains("on") { yabaiConfig.windowShadow = .on }
+                else if trimmed.contains("float") { yabaiConfig.windowShadow = .float }
+            } else if trimmed.contains("config insert_feedback_color") {
+                if let val = trimmed.components(separatedBy: " ").last {
+                    yabaiConfig.insertFeedbackColor = val
+                }
+            } else if trimmed.contains("config window_opacity_duration") {
+                if let val = trimmed.components(separatedBy: " ").last, let dVal = Double(val) {
+                    yabaiConfig.windowOpacityDuration = dVal
+                }
+            } else if trimmed.contains("config window_opacity") {
+                yabaiConfig.windowOpacity = trimmed.contains("on")
+            } else if trimmed.contains("config normal_window_opacity") {
+                if let val = trimmed.components(separatedBy: " ").last, let dVal = Double(val) {
+                    yabaiConfig.normalOpacity = dVal
+                }
+            } else if trimmed.contains("config active_window_opacity") {
+                if let val = trimmed.components(separatedBy: " ").last, let dVal = Double(val) {
+                    yabaiConfig.activeOpacity = dVal
+                }
             }
         }
     }
@@ -425,6 +458,17 @@ public class YabaiService: ObservableObject {
         runYabaiCommand(["config", "right_padding", "\(yabaiConfig.rightPadding)"])
         runYabaiCommand(["config", "focus_follows_mouse", yabaiConfig.focusFollowsMouse.rawValue])
         runYabaiCommand(["config", "mouse_follows_focus", yabaiConfig.mouseFollowsFocus ? "on" : "off"])
+        runYabaiCommand(["config", "window_shadow", yabaiConfig.windowShadow.rawValue])
+        runYabaiCommand(["config", "insert_feedback_color", yabaiConfig.insertFeedbackColor])
+        runYabaiCommand(["config", "window_opacity_duration", String(format: "%.2f", yabaiConfig.windowOpacityDuration)])
+
+        if yabaiConfig.windowOpacity {
+            runYabaiCommand(["config", "window_opacity", "on"])
+            runYabaiCommand(["config", "active_window_opacity", String(format: "%.2f", yabaiConfig.activeOpacity)])
+            runYabaiCommand(["config", "normal_window_opacity", String(format: "%.2f", yabaiConfig.normalOpacity)])
+        } else {
+            runYabaiCommand(["config", "window_opacity", "off"])
+        }
 
         if isSkhdRunning {
             runCommand("/usr/bin/killall", args: ["-USR1", "skhd"])
@@ -898,6 +942,75 @@ public class YabaiService: ObservableObject {
             if addedCount > 0 {
                 statusMessage = "Added \(addedCount) application\(addedCount > 1 ? "s" : "") to floating rules."
             }
+        }
+    }
+
+    // MARK: - Custom Window Rules Management
+
+    public func resetNewRuleFields() {
+        newRuleApp = ""
+        newRuleTitle = ""
+        newRuleSpace = 0
+        newRuleDisplay = 0
+        newRuleManage = 0
+        newRuleSticky = false
+        newRuleSubLayer = "default"
+        showingAddRuleForm = false
+    }
+
+    public func commitNewRule() {
+        let appPattern = newRuleApp.trimmingCharacters(in: .whitespaces)
+        let titlePattern = newRuleTitle.trimmingCharacters(in: .whitespaces)
+
+        var manageVal: Bool? = nil
+        if newRuleManage == 1 { manageVal = true }
+        else if newRuleManage == 2 { manageVal = false }
+
+        var subLayerVal: String? = nil
+        if newRuleSubLayer != "default" {
+            subLayerVal = newRuleSubLayer
+        }
+
+        let rule = YabaiRule(
+            app: appPattern,
+            title: titlePattern,
+            space: newRuleSpace > 0 ? newRuleSpace : nil,
+            display: newRuleDisplay > 0 ? newRuleDisplay : nil,
+            manage: manageVal,
+            sticky: newRuleSticky ? true : nil,
+            subLayer: subLayerVal
+        )
+
+        addCustomRule(rule)
+        resetNewRuleFields()
+    }
+
+    public func loadDefaultRules() {
+        for rule in YabaiRule.defaultRules {
+            if !yabaiConfig.customRules.contains(where: { $0.app == rule.app && $0.title == rule.title }) {
+                yabaiConfig.customRules.append(rule)
+            }
+        }
+        statusMessage = "Loaded preset window rules."
+    }
+
+    public func addCustomRule(_ rule: YabaiRule) {
+        yabaiConfig.customRules.append(rule)
+        statusMessage = "Added window rule."
+        if isYabaiRunning && rule.isEnabled {
+            _ = runYabaiCommand(rule.commandArguments)
+        }
+    }
+
+    public func removeCustomRule(id: UUID) {
+        yabaiConfig.customRules.removeAll { $0.id == id }
+        statusMessage = "Removed window rule."
+    }
+
+    public func toggleCustomRule(id: UUID) {
+        if let idx = yabaiConfig.customRules.firstIndex(where: { $0.id == id }) {
+            yabaiConfig.customRules[idx].isEnabled.toggle()
+            statusMessage = "Window rule \(yabaiConfig.customRules[idx].isEnabled ? "enabled" : "disabled")."
         }
     }
 

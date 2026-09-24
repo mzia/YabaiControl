@@ -50,6 +50,22 @@ public enum MenuBarDisplayStyle: String, CaseIterable, Identifiable, Codable, Se
     public var id: String { rawValue }
 }
 
+public enum WindowShadowMode: String, CaseIterable, Identifiable, Codable, Sendable {
+    case on = "on"
+    case off = "off"
+    case float = "float"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .on: return "All Windows (on)"
+        case .off: return "Disabled (off)"
+        case .float: return "Floating Only (float)"
+        }
+    }
+}
+
 public struct YabaiConfig: Codable, Equatable, Sendable {
     public var layout: YabaiLayout = .bsp
     public var windowGap: Int = 8
@@ -64,6 +80,10 @@ public struct YabaiConfig: Codable, Equatable, Sendable {
     public var windowOpacity: Bool = false
     public var activeOpacity: Double = 1.0
     public var normalOpacity: Double = 0.90
+    public var windowOpacityDuration: Double = 0.15
+    public var windowShadow: WindowShadowMode = .float
+    public var insertFeedbackColor: String = "0xff50fa7b"
+    public var windowAnimationDuration: Double = 0.0
     public var menuBarDisplayStyle: MenuBarDisplayStyle = .iconAndLayout
     public var floatingApps: [String] = [
         "System Settings",
@@ -73,6 +93,7 @@ public struct YabaiConfig: Codable, Equatable, Sendable {
         "QuickTime Player",
         "Finder"
     ]
+    public var customRules: [YabaiRule] = YabaiRule.defaultRules
 
     public init() {}
 
@@ -98,16 +119,32 @@ public struct YabaiConfig: Codable, Equatable, Sendable {
         lines.append("yabai -m config auto_balance \(autoBalance ? "on" : "off")")
         lines.append("yabai -m config split_ratio \(String(format: "%.2f", splitRatio))")
         lines.append("")
+        lines.append("# Appearance & Feedback")
+        lines.append("yabai -m config window_shadow \(windowShadow.rawValue)")
+        lines.append("yabai -m config insert_feedback_color \(insertFeedbackColor)")
+        lines.append("yabai -m config window_opacity_duration \(String(format: "%.2f", windowOpacityDuration))")
+        if windowAnimationDuration > 0 {
+            lines.append("yabai -m config window_animation_duration \(String(format: "%.2f", windowAnimationDuration))")
+        }
+        lines.append("")
         if windowOpacity {
             lines.append("# Opacity")
             lines.append("yabai -m config window_opacity on")
             lines.append("yabai -m config active_window_opacity \(String(format: "%.2f", activeOpacity))")
             lines.append("yabai -m config normal_window_opacity \(String(format: "%.2f", normalOpacity))")
             lines.append("")
+        } else {
+            lines.append("yabai -m config window_opacity off")
+            lines.append("")
         }
-        lines.append("# Floating App Rules")
+        lines.append("# Window Rules")
+        for rule in customRules where rule.isEnabled {
+            lines.append(rule.ruleLine)
+        }
         for app in floatingApps {
-            lines.append("yabai -m rule --add app=\"^\(app)$\" manage=off")
+            if !customRules.contains(where: { $0.app == app && $0.title.isEmpty && $0.manage == false }) {
+                lines.append("yabai -m rule --add app=\"^\(app)$\" manage=off")
+            }
         }
         lines.append("")
         lines.append("echo \"yabai configuration loaded successfully\"")
