@@ -902,3 +902,185 @@ struct StageManagerCompatibilityTests {
     }
 }
 
+@Suite("Notch & Tiling HUD Tests")
+struct NotchHUDTests {
+    @Test("NotchHUDData initializes and updates correctly")
+    func testNotchHUDData() {
+        var data = NotchHUDData(appName: "Ghostty", windowTitle: "zsh", spaceIndex: 2, layout: .bsp)
+        #expect(data.appName == "Ghostty")
+        #expect(data.windowTitle == "zsh")
+        #expect(data.spaceIndex == 2)
+        #expect(data.layout == .bsp)
+        #expect(data.appIcon == nil)
+
+        data.appName = "Xcode"
+        data.layout = .stack
+        #expect(data.appName == "Xcode")
+        #expect(data.layout == .stack)
+    }
+
+    @Test("NotchHUDManager singleton show and dismiss operations")
+    @MainActor
+    func testNotchHUDManagerOperations() {
+        let manager = NotchHUDManager.shared
+        manager.isEnabled = true
+        manager.show(appName: "Safari", title: "GitHub", space: 1, layout: .bsp)
+
+        #expect(manager.currentData.appName == "Safari")
+        #expect(manager.currentData.windowTitle == "GitHub")
+        #expect(manager.currentData.spaceIndex == 1)
+        #expect(manager.currentData.layout == .bsp)
+
+        manager.dismiss()
+    }
+}
+
+@Suite("Edge Snapping & Screen Zones Tests")
+struct EdgeSnappingTests {
+    @Test("Corner trigger zones take priority over edges")
+    func testCornerTriggerZones() {
+        let screenRect = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let threshold: CGFloat = 20
+
+        // Top-Left corner
+        let topLeft = CGPoint(x: 5, y: 1075)
+        #expect(WindowSnapPosition.triggerPosition(for: topLeft, in: screenRect, threshold: threshold) == .topLeft)
+
+        // Top-Right corner
+        let topRight = CGPoint(x: 1915, y: 1075)
+        #expect(WindowSnapPosition.triggerPosition(for: topRight, in: screenRect, threshold: threshold) == .topRight)
+
+        // Bottom-Left corner
+        let bottomLeft = CGPoint(x: 5, y: 5)
+        #expect(WindowSnapPosition.triggerPosition(for: bottomLeft, in: screenRect, threshold: threshold) == .bottomLeft)
+
+        // Bottom-Right corner
+        let bottomRight = CGPoint(x: 1915, y: 5)
+        #expect(WindowSnapPosition.triggerPosition(for: bottomRight, in: screenRect, threshold: threshold) == .bottomRight)
+    }
+
+    @Test("Edge trigger zones detect Halves and Maximize")
+    func testEdgeTriggerZones() {
+        let screenRect = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let threshold: CGFloat = 20
+
+        // Left edge middle
+        let leftEdge = CGPoint(x: 5, y: 540)
+        #expect(WindowSnapPosition.triggerPosition(for: leftEdge, in: screenRect, threshold: threshold) == .leftHalf)
+
+        // Right edge middle
+        let rightEdge = CGPoint(x: 1915, y: 540)
+        #expect(WindowSnapPosition.triggerPosition(for: rightEdge, in: screenRect, threshold: threshold) == .rightHalf)
+
+        // Top edge middle -> Maximize
+        let topEdge = CGPoint(x: 960, y: 1075)
+        #expect(WindowSnapPosition.triggerPosition(for: topEdge, in: screenRect, threshold: threshold) == .maximize)
+
+        // Center cursor -> nil
+        let centerPoint = CGPoint(x: 960, y: 540)
+        #expect(WindowSnapPosition.triggerPosition(for: centerPoint, in: screenRect, threshold: threshold) == nil)
+    }
+
+    @Test("targetRect calculates accurate screen coordinates")
+    func testTargetRectCalculation() {
+        let screen = CGRect(x: 0, y: 0, width: 2000, height: 1000)
+
+        let leftRect = WindowSnapPosition.leftHalf.targetRect(in: screen)
+        #expect(leftRect == CGRect(x: 0, y: 0, width: 1000, height: 1000))
+
+        let rightRect = WindowSnapPosition.rightHalf.targetRect(in: screen)
+        #expect(rightRect == CGRect(x: 1000, y: 0, width: 1000, height: 1000))
+
+        let topRect = WindowSnapPosition.topHalf.targetRect(in: screen)
+        #expect(topRect == CGRect(x: 0, y: 500, width: 2000, height: 500))
+
+        let maxRect = WindowSnapPosition.maximize.targetRect(in: screen)
+        #expect(maxRect == screen)
+    }
+
+    @Test("EdgeSnappingService lifecycle and snap commit")
+    @MainActor
+    func testEdgeSnappingService() {
+        let service = EdgeSnappingService.shared
+        service.isEnabled = true
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+
+        service.showPreview(for: .leftHalf, in: screen)
+        #expect(service.activePosition == .leftHalf)
+
+        let committed = service.commitSnap()
+        #expect(committed == .leftHalf)
+        #expect(service.activePosition == nil)
+    }
+}
+
+@Suite("Global Window Scratchpad Tests")
+struct ScratchpadTests {
+    @Test("Scratchpad presets generate valid yabai grid syntax")
+    func testScratchpadPresets() {
+        #expect(ScratchpadSizePreset.topDrawer.gridCommand == "10:10:0:1:10:4")
+        #expect(ScratchpadSizePreset.centerFloating.gridCommand == "10:10:1:1:8:8")
+        #expect(ScratchpadSizePreset.rightSidebar.gridCommand == "1:10:6:0:4:10")
+        #expect(ScratchpadSizePreset.allCases.count == 3)
+    }
+
+    @Test("ScratchpadService handles daemon stopped gracefully")
+    @MainActor
+    func testScratchpadServiceStoppedDaemon() {
+        let service = ScratchpadService.shared
+        let yabai = YabaiService.shared
+        let originalRunning = yabai.isYabaiRunning
+        defer { yabai.isYabaiRunning = originalRunning }
+
+        yabai.isYabaiRunning = false
+        service.toggleScratchpad(appName: "Terminal", yabaiService: yabai)
+        #expect(yabai.statusMessage.contains("Cannot summon scratchpad"))
+    }
+}
+
+@Suite("Display Aspect-Ratio Auto-Tuning Tests")
+struct DisplayTuningTests {
+    @Test("Detects physical display aspect ratio profile")
+    func testDetectDisplayProfile() {
+        // Ultrawide (21:9 or 32:9)
+        #expect(DisplayTuningService.detectDisplayProfile(width: 3440, height: 1440) == .ultrawide)
+        #expect(DisplayTuningService.detectDisplayProfile(width: 5120, height: 1440) == .ultrawide)
+
+        // Portrait
+        #expect(DisplayTuningService.detectDisplayProfile(width: 1080, height: 1920) == .portrait)
+        #expect(DisplayTuningService.detectDisplayProfile(width: 1440, height: 2560) == .portrait)
+
+        // Standard
+        #expect(DisplayTuningService.detectDisplayProfile(width: 2560, height: 1600) == .standard)
+        #expect(DisplayTuningService.detectDisplayProfile(width: 1920, height: 1080) == .standard)
+    }
+
+    @Test("Calculates recommended side margins per profile")
+    func testRecommendedMargins() {
+        let ultraMargins = DisplayTuningService.recommendedSidePadding(for: .ultrawide, basePadding: 8, ultrawidePadding: 48)
+        #expect(ultraMargins.left == 48)
+        #expect(ultraMargins.right == 48)
+
+        let standardMargins = DisplayTuningService.recommendedSidePadding(for: .standard, basePadding: 8, ultrawidePadding: 48)
+        #expect(standardMargins.left == 8)
+        #expect(standardMargins.right == 8)
+
+        let portraitMargins = DisplayTuningService.recommendedSidePadding(for: .portrait, basePadding: 8, ultrawidePadding: 48)
+        #expect(portraitMargins.left == 8)
+        #expect(portraitMargins.right == 8)
+    }
+
+    @Test("YabaiConfig defaults for enhancements")
+    func testEnhancementDefaults() {
+        let config = YabaiConfig()
+        #expect(config.enableNotchHUD == true)
+        #expect(config.enableEdgeSnapping == true)
+        #expect(config.enableScratchpad == true)
+        #expect(config.scratchpadApp == "Terminal")
+        #expect(config.scratchpadPreset == .topDrawer)
+        #expect(config.autoTuneDisplayLayouts == true)
+        #expect(config.ultrawideSidePadding == 40)
+    }
+}
+
+

@@ -428,6 +428,16 @@ public struct MenuBarView: View {
                 }
                 .buttonStyle(.borderless)
 
+                if service.yabaiConfig.enableScratchpad {
+                    Button {
+                        service.toggleScratchpad()
+                    } label: {
+                        Label("Toggle Scratchpad (\(service.yabaiConfig.scratchpadApp))", systemImage: "terminal")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.borderless)
+                }
+
                 Toggle(isOn: $service.yabaiConfig.mouseFollowsFocus) {
                     Label("Mouse Follows Focus", systemImage: "cursorarrow.motionlines")
                 }

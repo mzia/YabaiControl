@@ -96,6 +96,15 @@ public struct YabaiConfig: Codable, Equatable, Sendable {
     public var customRules: [YabaiRule] = YabaiRule.defaultRules
     public var disableTilingWithStageManager: Bool = true
 
+    // Advanced Experience Settings
+    public var enableNotchHUD: Bool = true
+    public var enableEdgeSnapping: Bool = true
+    public var enableScratchpad: Bool = true
+    public var scratchpadApp: String = "Terminal"
+    public var scratchpadPreset: ScratchpadSizePreset = .topDrawer
+    public var autoTuneDisplayLayouts: Bool = true
+    public var ultrawideSidePadding: Int = 40
+
     public init() {}
 
     /// Generates standard ~/.yabairc shell script content

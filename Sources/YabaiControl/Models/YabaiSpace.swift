@@ -47,6 +47,7 @@ public struct YabaiWindow: Codable, Identifiable, Equatable, Sendable {
     public var space: Int
     public var hasFocus: Bool
     public var isFloating: Bool
+    public var isSticky: Bool
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -56,9 +57,10 @@ public struct YabaiWindow: Codable, Identifiable, Equatable, Sendable {
         case space
         case hasFocus = "has-focus"
         case isFloating = "is-floating"
+        case isSticky = "is-sticky"
     }
 
-    public init(id: Int, pid: Int = 0, app: String, title: String = "", space: Int = 1, hasFocus: Bool = false, isFloating: Bool = false) {
+    public init(id: Int, pid: Int = 0, app: String, title: String = "", space: Int = 1, hasFocus: Bool = false, isFloating: Bool = false, isSticky: Bool = false) {
         self.id = id
         self.pid = pid
         self.app = app
@@ -66,5 +68,18 @@ public struct YabaiWindow: Codable, Identifiable, Equatable, Sendable {
         self.space = space
         self.hasFocus = hasFocus
         self.isFloating = isFloating
+        self.isSticky = isSticky
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(Int.self, forKey: .id)
+        self.pid = try container.decodeIfPresent(Int.self, forKey: .pid) ?? 0
+        self.app = try container.decode(String.self, forKey: .app)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.space = try container.decodeIfPresent(Int.self, forKey: .space) ?? 1
+        self.hasFocus = try container.decodeIfPresent(Bool.self, forKey: .hasFocus) ?? false
+        self.isFloating = try container.decodeIfPresent(Bool.self, forKey: .isFloating) ?? false
+        self.isSticky = try container.decodeIfPresent(Bool.self, forKey: .isSticky) ?? false
     }
 }
