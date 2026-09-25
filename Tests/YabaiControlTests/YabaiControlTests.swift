@@ -600,6 +600,41 @@ struct QuickWindowSwitcherTests {
         #expect(searchDoc.first?.app == "Safari")
     }
 
+    @Test("currentSpaceWindows and activeWindow identify matching windows accurately")
+    @MainActor
+    func testCurrentSpaceWindowsAndActiveWindow() {
+        let service = YabaiService.shared
+        service.allWindows = [
+            YabaiWindow(id: 201, pid: 10, app: "Finder", title: "Downloads", space: 1, hasFocus: false),
+            YabaiWindow(id: 202, pid: 11, app: "Xcode", title: "YabaiControl.swift", space: 1, hasFocus: true),
+            YabaiWindow(id: 203, pid: 12, app: "Slack", title: "General", space: 2, hasFocus: false)
+        ]
+        service.activeSpaceIndex = 1
+
+        let space1Windows = service.currentSpaceWindows
+        #expect(space1Windows.count == 2)
+        #expect(space1Windows.map(\.id) == [201, 202])
+
+        #expect(service.activeWindow?.id == 202)
+        #expect(service.activeWindow?.app == "Xcode")
+
+        service.activeSpaceIndex = 2
+        let space2Windows = service.currentSpaceWindows
+        #expect(space2Windows.count == 1)
+        #expect(space2Windows.first?.app == "Slack")
+    }
+
+    @Test("runningGUIApplications discovers apps from windows and system")
+    @MainActor
+    func testRunningGUIApplicationsDiscovery() {
+        let service = YabaiService.shared
+        service.allWindows = [
+            YabaiWindow(id: 301, pid: 15, app: "CustomMockApp", title: "Window 1", space: 1)
+        ]
+        let apps = service.runningGUIApplications
+        #expect(apps.contains("CustomMockApp"))
+    }
+
     @Test("YabaiWindow decodes from valid yabai JSON query response")
     func testWindowJSONDecoding() throws {
         let json = """

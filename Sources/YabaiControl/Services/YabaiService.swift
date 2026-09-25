@@ -1175,7 +1175,37 @@ public class YabaiService: ObservableObject {
         return url.deletingPathExtension().lastPathComponent
     }
 
+    public var runningGUIApplications: [String] {
+        var names = Set<String>()
+        for win in allWindows {
+            let trimmed = win.app.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                names.insert(trimmed)
+            }
+        }
+        for app in NSWorkspace.shared.runningApplications {
+            if app.activationPolicy == .regular, let localizedName = app.localizedName, !localizedName.isEmpty {
+                names.insert(localizedName)
+            }
+        }
+        return names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    public var activeWindow: YabaiWindow? {
+        allWindows.first(where: { $0.hasFocus })
+    }
+
+    public var currentSpaceWindows: [YabaiWindow] {
+        allWindows.filter { $0.space == activeSpaceIndex }
+    }
+
     public func appIcon(for appName: String) -> NSImage? {
+        if let runningApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.localizedName?.lowercased() == appName.lowercased()
+        }), let icon = runningApp.icon {
+            return icon
+        }
+
         let searchDirectories = [
             "/Applications",
             "/System/Applications",

@@ -136,6 +136,8 @@ public struct SettingsView: View {
     private var gapsTabView: some View {
         Form {
             Section(header: Text("Window Spacing (Pixels)").font(.headline)) {
+                desktopGapsPreviewView
+
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Window Gap: \(service.yabaiConfig.windowGap)px")
@@ -283,6 +285,160 @@ public struct SettingsView: View {
         }
     }
 
+    private var desktopGapsPreviewView: some View {
+        VStack(spacing: 6) {
+            // Simulated macOS display bezel
+            ZStack(alignment: .top) {
+                // Monitor bezel / background
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+
+                VStack(spacing: 0) {
+                    // Top simulated macOS menu bar
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.secondary.opacity(0.6)).frame(width: 4, height: 4)
+                        Circle().fill(Color.secondary.opacity(0.4)).frame(width: 4, height: 4)
+                        Circle().fill(Color.secondary.opacity(0.4)).frame(width: 4, height: 4)
+                        Spacer()
+                        Capsule().fill(Color.secondary.opacity(0.3)).frame(width: 22, height: 3)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(height: 12)
+                    .background(Color.secondary.opacity(0.12))
+
+                    // Workspace area with dynamic padding and gap
+                    let scale: CGFloat = 0.35
+                    let topPad = CGFloat(service.yabaiConfig.topPadding) * scale
+                    let bottomPad = CGFloat(service.yabaiConfig.bottomPadding) * scale
+                    let leftPad = CGFloat(service.yabaiConfig.leftPadding) * scale
+                    let rightPad = CGFloat(service.yabaiConfig.rightPadding) * scale
+                    let gap = CGFloat(service.yabaiConfig.windowGap) * scale
+
+                    HStack(spacing: gap) {
+                        // Left Window: Focused Window
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 3) {
+                                Circle().fill(Color.red.opacity(0.85)).frame(width: 4, height: 4)
+                                Circle().fill(Color.yellow.opacity(0.85)).frame(width: 4, height: 4)
+                                Circle().fill(Color.green.opacity(0.85)).frame(width: 4, height: 4)
+                                Spacer()
+                                Image(systemName: "macwindow")
+                                    .font(.system(size: 7))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 3)
+
+                            Spacer()
+
+                            Text("Focused Window")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(Color.primary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color(hexARGB: service.yabaiConfig.insertFeedbackColor), lineWidth: 1.5)
+                        )
+
+                        // Right Column: Two stacked windows
+                        VStack(spacing: gap) {
+                            // Window 2
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 3) {
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 4)
+                                .padding(.top, 3)
+
+                                Spacer()
+
+                                Text("Window 2")
+                                    .font(.system(size: 7, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color(nsColor: .controlBackgroundColor).opacity(0.75))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+
+                            // Window 3
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 3) {
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 4)
+                                .padding(.top, 3)
+
+                                Spacer()
+
+                                Text("Window 3")
+                                    .font(.system(size: 7, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color(nsColor: .controlBackgroundColor).opacity(0.75))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .padding(.top, topPad)
+                    .padding(.bottom, bottomPad)
+                    .padding(.leading, leftPad)
+                    .padding(.trailing, rightPad)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.windowGap)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.topPadding)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.bottomPadding)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.leftPadding)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.rightPadding)
+                }
+            }
+            .frame(height: 120)
+
+            HStack {
+                Text("Live Desktop Simulation")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Gap: \(service.yabaiConfig.windowGap)px • Margins: T\(service.yabaiConfig.topPadding) B\(service.yabaiConfig.bottomPadding) L\(service.yabaiConfig.leftPadding) R\(service.yabaiConfig.rightPadding)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 2)
+        }
+        .padding(8)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
     // MARK: - Tab 3: Window Rules & Routing
     private var rulesTabView: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -334,11 +490,66 @@ public struct SettingsView: View {
                     Text("New Window Rule").font(.subheadline).bold()
 
                     HStack(spacing: 8) {
-                        TextField("App Regex (e.g. ^Slack$)", text: $service.newRuleApp)
-                            .textFieldStyle(.roundedBorder)
+                        HStack(spacing: 4) {
+                            TextField("App Regex (e.g. ^Slack$)", text: $service.newRuleApp)
+                                .textFieldStyle(.roundedBorder)
 
-                        TextField("Title Regex (e.g. ^Picture in Picture$)", text: $service.newRuleTitle)
-                            .textFieldStyle(.roundedBorder)
+                            Menu {
+                                if service.runningGUIApplications.isEmpty {
+                                    Text("No running apps detected")
+                                } else {
+                                    ForEach(service.runningGUIApplications, id: \.self) { app in
+                                        Button {
+                                            service.newRuleApp = "^\(NSRegularExpression.escapedPattern(for: app))$"
+                                        } label: {
+                                            if let icon = service.appIcon(for: app) {
+                                                Label {
+                                                    Text(app)
+                                                } icon: {
+                                                    Image(nsImage: icon)
+                                                }
+                                            } else {
+                                                Text(app)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "app.badge.checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .help("Select from currently running apps")
+                        }
+
+                        HStack(spacing: 4) {
+                            TextField("Title Regex (e.g. ^Picture in Picture$)", text: $service.newRuleTitle)
+                                .textFieldStyle(.roundedBorder)
+
+                            let matchingTitles = service.allWindows
+                                .filter {
+                                    if service.newRuleApp.isEmpty { return true }
+                                    let cleanApp = service.newRuleApp.replacingOccurrences(of: "^", with: "").replacingOccurrences(of: "$", with: "")
+                                    return $0.app.localizedCaseInsensitiveContains(cleanApp)
+                                }
+                                .map { $0.title }
+                                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
+                            if !matchingTitles.isEmpty {
+                                Menu {
+                                    ForEach(Array(Set(matchingTitles)).sorted(), id: \.self) { title in
+                                        Button(title) {
+                                            service.newRuleTitle = "^\(NSRegularExpression.escapedPattern(for: title))$"
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "macwindow.badge.plus")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                .menuStyle(.borderlessButton)
+                                .help("Select from open window titles")
+                            }
+                        }
                     }
 
                     HStack(spacing: 12) {
@@ -514,28 +725,97 @@ public struct SettingsView: View {
                     .clipShape(Capsule())
             }
 
-            // Primary action: Finder OpenPanel picker
-            HStack(spacing: 10) {
-                Button {
-                    service.selectAppFromFinder()
+            // Primary actions: Quick Add Running App & Finder OpenPanel picker
+            let unaddedRunning = service.runningGUIApplications.filter { !service.yabaiConfig.floatingApps.contains($0) }
+
+            HStack(spacing: 8) {
+                Menu {
+                    if unaddedRunning.isEmpty {
+                        Text("All running apps already in list")
+                    } else {
+                        ForEach(unaddedRunning, id: \.self) { appName in
+                            Button {
+                                service.addFloatingApp(appName)
+                            } label: {
+                                if let icon = service.appIcon(for: appName) {
+                                    Label {
+                                        Text(appName)
+                                    } icon: {
+                                        Image(nsImage: icon)
+                                    }
+                                } else {
+                                    Text(appName)
+                                }
+                            }
+                        }
+                    }
                 } label: {
-                    Label("Select App from Finder...", systemImage: "folder.badge.plus")
+                    Label("Add Running App...", systemImage: "play.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
 
-                Text("or enter manually:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                TextField("App name (e.g. Slack)", text: $service.newAppName)
-                    .textFieldStyle(.roundedBorder)
-
-                Button("Add") {
-                    service.addFloatingApp(service.newAppName)
-                    service.newAppName = ""
+                Button {
+                    service.selectAppFromFinder()
+                } label: {
+                    Label("From Finder...", systemImage: "folder.badge.plus")
                 }
-                .disabled(service.newAppName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    TextField("Or enter app name...", text: $service.newAppName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 170)
+
+                    Button("Add") {
+                        service.addFloatingApp(service.newAppName)
+                        service.newAppName = ""
+                    }
+                    .controlSize(.regular)
+                    .disabled(service.newAppName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+
+            if !unaddedRunning.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        Text("Quick Add:")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        ForEach(unaddedRunning.prefix(8), id: \.self) { appName in
+                            Button {
+                                service.addFloatingApp(appName)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if let icon = service.appIcon(for: appName) {
+                                        Image(nsImage: icon)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 13, height: 13)
+                                    }
+                                    Text(appName)
+                                        .font(.caption2)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color(nsColor: .controlBackgroundColor))
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule().stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
             }
 
             List {
