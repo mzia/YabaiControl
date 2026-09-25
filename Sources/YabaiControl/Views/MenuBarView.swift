@@ -128,13 +128,13 @@ public struct MenuBarView: View {
 
             Divider()
 
-            // Quick Window Switcher (Option D)
+            // Quick Window Switcher & Active Windows
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                     .font(.caption)
 
-                TextField("Quick switch window...", text: $service.windowSearchText)
+                TextField("Search all windows...", text: $service.windowSearchText)
                     .textFieldStyle(.plain)
                     .font(.caption)
 
@@ -153,76 +153,112 @@ public struct MenuBarView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            if !service.windowSearchText.isEmpty {
-                let filteredWindows = service.allWindows.filter {
-                    $0.app.localizedCaseInsensitiveContains(service.windowSearchText) ||
-                    $0.title.localizedCaseInsensitiveContains(service.windowSearchText)
+            let displayedWindows: [YabaiWindow] = {
+                if !service.windowSearchText.isEmpty {
+                    return service.allWindows.filter {
+                        $0.app.localizedCaseInsensitiveContains(service.windowSearchText) ||
+                        $0.title.localizedCaseInsensitiveContains(service.windowSearchText)
+                    }
+                } else {
+                    return service.currentSpaceWindows
                 }
+            }()
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Matching Windows (\(filteredWindows.count))")
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(service.windowSearchText.isEmpty ? "Space \(service.activeSpaceIndex) Windows (\(displayedWindows.count))" : "Matching Windows (\(displayedWindows.count))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
 
-                    if filteredWindows.isEmpty {
-                        Text("No matching windows found")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        ScrollView {
-                            VStack(spacing: 4) {
-                                ForEach(filteredWindows) { win in
-                                    Button {
-                                        service.focusWindow(id: win.id, space: win.space)
-                                        service.windowSearchText = ""
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            if let icon = service.appIcon(for: win.app) {
-                                                Image(nsImage: icon)
-                                                    .resizable()
-                                                    .frame(width: 16, height: 16)
-                                            } else {
-                                                Image(systemName: "macwindow")
-                                                    .frame(width: 16, height: 16)
-                                            }
+                    Spacer()
 
-                                            VStack(alignment: .leading, spacing: 1) {
+                    if service.windowSearchText.isEmpty && !service.allWindows.isEmpty {
+                        Text("\(service.allWindows.count) total")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if displayedWindows.isEmpty {
+                    Text(service.windowSearchText.isEmpty ? "No active windows on Space \(service.activeSpaceIndex)" : "No matching windows found")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 4) {
+                            ForEach(displayedWindows) { win in
+                                Button {
+                                    service.focusWindow(id: win.id, space: win.space)
+                                    service.windowSearchText = ""
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        if let icon = service.appIcon(for: win.app) {
+                                            Image(nsImage: icon)
+                                                .resizable()
+                                                .frame(width: 16, height: 16)
+                                        } else {
+                                            Image(systemName: "macwindow")
+                                                .frame(width: 16, height: 16)
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            HStack(spacing: 4) {
                                                 Text(win.app)
                                                     .font(.caption)
-                                                    .fontWeight(.semibold)
+                                                    .fontWeight(win.hasFocus ? .bold : .semibold)
                                                     .lineLimit(1)
-                                                if !win.title.isEmpty {
-                                                    Text(win.title)
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.secondary)
-                                                        .lineLimit(1)
+
+                                                if win.hasFocus {
+                                                    Circle()
+                                                        .fill(Color.green)
+                                                        .frame(width: 5, height: 5)
                                                 }
                                             }
-
-                                            Spacer()
-
-                                            Text("S\(win.space)")
-                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 2)
-                                                .background(win.space == service.activeSpaceIndex ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.15))
-                                                .foregroundStyle(win.space == service.activeSpaceIndex ? Color.accentColor : Color.primary)
-                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                            if !win.title.isEmpty {
+                                                Text(win.title)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
                                         }
-                                        .padding(.vertical, 4)
-                                        .padding(.horizontal, 6)
-                                        .background(Color(nsColor: .controlBackgroundColor))
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                        Spacer()
+
+                                        if win.isFloating {
+                                            Text("FLOAT")
+                                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 1)
+                                                .background(Color.orange.opacity(0.18))
+                                                .foregroundStyle(Color.orange)
+                                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                                        }
+
+                                        Text("S\(win.space)")
+                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 2)
+                                            .background(win.space == service.activeSpaceIndex ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.15))
+                                            .foregroundStyle(win.space == service.activeSpaceIndex ? Color.accentColor : Color.primary)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    .buttonStyle(.plain)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 6)
+                                    .background(win.hasFocus ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(win.hasFocus ? Color.accentColor.opacity(0.4) : Color.clear, lineWidth: 1)
+                                    )
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .frame(maxHeight: 160)
                     }
+                    .frame(maxHeight: min(CGFloat(max(displayedWindows.count, 1) * 38), 130))
                 }
             }
 
