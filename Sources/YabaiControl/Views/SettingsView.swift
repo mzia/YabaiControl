@@ -92,8 +92,14 @@ public struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                Text("Hovering your cursor over a window automatically gives it focus (or raises it above other windows).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                Toggle("Warp Mouse to Center of Focused Window", isOn: $service.yabaiConfig.mouseFollowsFocus)
+                Toggle("Warp Mouse to Center of Focused Window (Mouse Follows Focus)", isOn: $service.yabaiConfig.mouseFollowsFocus)
+                Text("Automatically teleports the mouse cursor to the geometric center of any newly focused window when navigating via keyboard shortcuts, space switching, or application switching.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section(header: Text("Menu Bar Title & Appearance").font(.headline)) {

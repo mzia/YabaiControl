@@ -380,36 +380,6 @@ public struct MenuBarView: View {
 
             Divider()
 
-            // Key Shortcut Mapping
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Key Shortcut Mapping")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Spacer()
-                    Text("Modifier: ⌥ Option")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(spacing: 4) {
-                    shortcutRow(keys: "⌥ + H/J/K/L", action: "Focus West / South / North / East")
-                    shortcutRow(keys: "⇧⌥ + H/J/K/L", action: "Swap Window Direction")
-                    shortcutRow(keys: "⌃⌥ + H/J/K/L", action: "Warp Window to Tree Node")
-                    shortcutRow(keys: "⌃⌥ + N / P", action: "Move to Next / Prev Display")
-                    shortcutRow(keys: "⌃⌥ + ← / →", action: "Snap Window Left / Right Half")
-                    shortcutRow(keys: "⌃⌥ + M", action: "Toggle Fullscreen / Zoom")
-                    shortcutRow(keys: "⌃⇧ + ← / →", action: "Move Space & Follow Focus")
-                    shortcutRow(keys: "⌥ + T / E / B", action: "Float / Split / Balance Window")
-                }
-                .padding(8)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-
-            Divider()
-
             // Quick Action Buttons
             VStack(spacing: 6) {
                 Button {
@@ -436,14 +406,6 @@ public struct MenuBarView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.borderless)
-                }
-
-                Toggle(isOn: $service.yabaiConfig.mouseFollowsFocus) {
-                    Label("Mouse Follows Focus", systemImage: "cursorarrow.motionlines")
-                }
-                .toggleStyle(.switch)
-                .onChange(of: service.yabaiConfig.mouseFollowsFocus) { _, _ in
-                    service.applyLiveSettings()
                 }
             }
 
@@ -530,18 +492,6 @@ public struct MenuBarView: View {
         .clipShape(Capsule())
     }
 
-    @ViewBuilder
-    private func shortcutRow(keys: String, action: String) -> some View {
-        HStack {
-            Text(keys)
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(.primary)
-            Spacer()
-            Text(action)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
 
     @ViewBuilder
     private func snapButton(position: WindowSnapPosition) -> some View {
