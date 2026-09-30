@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct SettingsView: View {
     @EnvironmentObject private var service: YabaiService
+    @Environment(\.dismiss) private var dismiss
 
     public init() {}
 
@@ -25,7 +26,7 @@ public struct SettingsView: View {
 
             enhancementsTabView
                 .tabItem { Label("Enhancements", systemImage: "wand.and.stars") }
-                .tag(6)
+                .tag(4)
 
             profilesTabView
                 .tabItem { Label("Profiles", systemImage: "sparkles.rectangle.stack") }
@@ -33,10 +34,19 @@ public struct SettingsView: View {
 
             servicesTabView
                 .tabItem { Label("Services", systemImage: "gearshape.2") }
-                .tag(4)
+                .tag(6)
         }
         .padding(20)
-        .frame(minWidth: 760, idealWidth: 780, minHeight: 520, idealHeight: 560)
+        .frame(minWidth: 760, idealWidth: 780, maxWidth: 840, minHeight: 520, idealHeight: 560, maxHeight: 680)
+        .background {
+            Button("") {
+                dismiss()
+            }
+            .keyboardShortcut("w", modifiers: .command)
+            .keyboardShortcut(.cancelAction)
+            .opacity(0)
+            .accessibilityHidden(true)
+        }
         .confirmationDialog(
             "Uninstall YabaiControl?",
             isPresented: $service.showUninstallAlert,
@@ -1399,8 +1409,9 @@ public struct SettingsView: View {
 
     // MARK: - Tab 5: Services & Daemons
     private var servicesTabView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Daemon Status & Health").font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Daemon Status & Health").font(.headline)
 
             HStack(spacing: 20) {
                 daemonCard(
@@ -1673,10 +1684,11 @@ public struct SettingsView: View {
                 }
                 .buttonStyle(.bordered)
             }
-
-            Spacer()
         }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
     }
+}
 
     @ViewBuilder
     private func daemonCard(
