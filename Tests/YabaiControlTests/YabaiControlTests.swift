@@ -396,7 +396,7 @@ struct UpdateAndRestartTests {
 
         service.toggleSimulatedUpdate()
         #expect(service.isUpdatePendingRestart == true)
-        #expect(service.updateVersion == "1.1.0")
+        #expect(service.updateVersion == "1.2.0")
 
         service.toggleSimulatedUpdate()
         #expect(service.isUpdatePendingRestart == false)

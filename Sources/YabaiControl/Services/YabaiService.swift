@@ -928,9 +928,9 @@ public class YabaiService: ObservableObject {
         } else {
             isUpdateAvailable = true
             isRestartRequired = true
-            updateVersion = "1.1.0"
+            updateVersion = "1.2.0"
             statusMessage = "Simulated update ready. Restart required."
-            updateStatusMessage = "Version 1.1.0 ready. Restart required."
+            updateStatusMessage = "Version 1.2.0 ready. Restart required."
         }
     }
 
@@ -942,7 +942,7 @@ public class YabaiService: ObservableObject {
     }
 
     public var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
     }
 
     public func checkForUpdates() {
