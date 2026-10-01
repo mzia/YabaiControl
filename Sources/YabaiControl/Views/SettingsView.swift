@@ -37,15 +37,18 @@ public struct SettingsView: View {
                 .tag(6)
         }
         .padding(20)
-        .frame(minWidth: 760, idealWidth: 780, maxWidth: 840, minHeight: 520, idealHeight: 560, maxHeight: 680)
+        .frame(minWidth: 760, idealWidth: 780, minHeight: 520, idealHeight: 560)
         .background {
             Button("") {
                 dismiss()
             }
             .keyboardShortcut("w", modifiers: .command)
-            .keyboardShortcut(.cancelAction)
             .opacity(0)
+            .allowsHitTesting(false)
             .accessibilityHidden(true)
+        }
+        .onExitCommand {
+            dismiss()
         }
         .confirmationDialog(
             "Uninstall YabaiControl?",
@@ -63,235 +66,281 @@ public struct SettingsView: View {
 
     // MARK: - Tab 1: Layout & Behavior
     private var layoutTabView: some View {
-        Form {
-            Section(header: Text("Tiling Behavior").font(.headline)) {
-                Picker("Layout Algorithm", selection: $service.yabaiConfig.layout) {
-                    ForEach(YabaiLayout.allCases) { layout in
-                        Text(layout.displayName).tag(layout)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Section 1: Tiling Behavior
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Tiling Behavior").font(.headline)
+
+                    Picker("Layout Algorithm", selection: $service.yabaiConfig.layout) {
+                        ForEach(YabaiLayout.allCases) { layout in
+                            Text(layout.displayName).tag(layout)
+                        }
+                    }
+                    .pickerStyle(.radioGroup)
+
+                    Toggle("Auto-Balance Window Sizes", isOn: $service.yabaiConfig.autoBalance)
+
+                    HStack {
+                        Text("Default Split Ratio: \(Int(service.yabaiConfig.splitRatio * 100))%")
+                        Slider(value: $service.yabaiConfig.splitRatio, in: 0.1...0.9, step: 0.05)
+                    }
+
+                    Toggle("Auto-Suspend Tiling for Apple Stage Manager", isOn: $service.yabaiConfig.disableTilingWithStageManager)
+                    Text("Switches to native floating layout when Stage Manager is active to prevent window jitter and coordinate collisions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if service.isStageManagerEnabled {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.cyan)
+                            Text(service.isTilingSuspendedForStageManager ? "Stage Manager is active: tiling currently suspended." : "Stage Manager is active.")
+                                .font(.caption2)
+                                .foregroundStyle(.cyan)
+                        }
                     }
                 }
-                .pickerStyle(.radioGroup)
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                Toggle("Auto-Balance Window Sizes", isOn: $service.yabaiConfig.autoBalance)
+                // Section 2: Mouse Interaction
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Mouse Interaction").font(.headline)
 
-                HStack {
-                    Text("Default Split Ratio: \(Int(service.yabaiConfig.splitRatio * 100))%")
-                    Slider(value: $service.yabaiConfig.splitRatio, in: 0.1...0.9, step: 0.05)
+                    Picker("Focus Follows Mouse", selection: $service.yabaiConfig.focusFollowsMouse) {
+                        ForEach(FocusFollowsMouseMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("Hovering your cursor over a window automatically gives it focus (or raises it above other windows).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Warp Mouse to Center of Focused Window (Mouse Follows Focus)", isOn: $service.yabaiConfig.mouseFollowsFocus)
+                    Text("Automatically teleports the mouse cursor to the geometric center of any newly focused window when navigating via keyboard shortcuts, space switching, or application switching.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                Toggle("Auto-Suspend Tiling for Apple Stage Manager", isOn: $service.yabaiConfig.disableTilingWithStageManager)
-                Text("Switches to native floating layout when Stage Manager is active to prevent window jitter and coordinate collisions.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Section 3: Menu Bar Title & Appearance
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Menu Bar Title & Appearance").font(.headline)
 
-                if service.isStageManagerEnabled {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.cyan)
-                        Text(service.isTilingSuspendedForStageManager ? "Stage Manager is active: tiling currently suspended." : "Stage Manager is active.")
+                    Picker("Display Format in Menu Bar", selection: $service.yabaiConfig.menuBarDisplayStyle) {
+                        ForEach(MenuBarDisplayStyle.allCases) { style in
+                            Text(style.rawValue).tag(style)
+                        }
+                    }
+                    .pickerStyle(.radioGroup)
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 4: Startup & Login Item
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Startup & Login Item").font(.headline)
+
+                    Toggle("Launch YabaiControl at Login", isOn: Binding(
+                        get: { service.isLaunchAtLoginEnabled },
+                        set: { service.setLaunchAtLogin(enabled: $0) }
+                    ))
+                    Text("Automatically launches YabaiControl when you log into macOS using modern Service Management (SMAppService).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if !service.launchAtLoginStatusMessage.isEmpty {
+                        Text(service.launchAtLoginStatusMessage)
                             .font(.caption2)
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(service.isLaunchAtLoginEnabled ? .green : .secondary)
                     }
                 }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                saveButton
             }
-
-            Section(header: Text("Mouse Interaction").font(.headline)) {
-                Picker("Focus Follows Mouse", selection: $service.yabaiConfig.focusFollowsMouse) {
-                    ForEach(FocusFollowsMouseMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-                Text("Hovering your cursor over a window automatically gives it focus (or raises it above other windows).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle("Warp Mouse to Center of Focused Window (Mouse Follows Focus)", isOn: $service.yabaiConfig.mouseFollowsFocus)
-                Text("Automatically teleports the mouse cursor to the geometric center of any newly focused window when navigating via keyboard shortcuts, space switching, or application switching.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section(header: Text("Menu Bar Title & Appearance").font(.headline)) {
-                Picker("Display Format in Menu Bar", selection: $service.yabaiConfig.menuBarDisplayStyle) {
-                    ForEach(MenuBarDisplayStyle.allCases) { style in
-                        Text(style.rawValue).tag(style)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-            }
-
-            Section(header: Text("Startup & Login Item").font(.headline)) {
-                Toggle("Launch YabaiControl at Login", isOn: Binding(
-                    get: { service.isLaunchAtLoginEnabled },
-                    set: { service.setLaunchAtLogin(enabled: $0) }
-                ))
-                Text("Automatically launches YabaiControl when you log into macOS using modern Service Management (SMAppService).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if !service.launchAtLoginStatusMessage.isEmpty {
-                    Text(service.launchAtLoginStatusMessage)
-                        .font(.caption2)
-                        .foregroundStyle(service.isLaunchAtLoginEnabled ? .green : .secondary)
-                }
-            }
-
-            Spacer()
-
-            saveButton
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
         }
     }
 
     // MARK: - Tab 2: Gaps & Padding
     private var gapsTabView: some View {
-        Form {
-            Section(header: Text("Window Spacing (Pixels)").font(.headline)) {
-                desktopGapsPreviewView
-
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Section 1: Window Spacing (Pixels)
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Window Gap: \(service.yabaiConfig.windowGap)px")
-                            .frame(width: 150, alignment: .leading)
-                        Slider(value: Binding(
-                            get: { Double(service.yabaiConfig.windowGap) },
-                            set: { service.yabaiConfig.windowGap = Int($0) }
-                        ), in: 0...40, step: 1)
-                    }
+                    Text("Window Spacing (Pixels)").font(.headline)
 
-                    HStack {
-                        Text("Top Margin: \(service.yabaiConfig.topPadding)px")
-                            .frame(width: 150, alignment: .leading)
-                        Slider(value: Binding(
-                            get: { Double(service.yabaiConfig.topPadding) },
-                            set: { service.yabaiConfig.topPadding = Int($0) }
-                        ), in: 0...50, step: 1)
-                    }
+                    desktopGapsPreviewView
 
-                    HStack {
-                        Text("Bottom Margin: \(service.yabaiConfig.bottomPadding)px")
-                            .frame(width: 150, alignment: .leading)
-                        Slider(value: Binding(
-                            get: { Double(service.yabaiConfig.bottomPadding) },
-                            set: { service.yabaiConfig.bottomPadding = Int($0) }
-                        ), in: 0...50, step: 1)
-                    }
-
-                    HStack {
-                        Text("Side Margins: \(service.yabaiConfig.leftPadding)px")
-                            .frame(width: 150, alignment: .leading)
-                        Slider(value: Binding(
-                            get: { Double(service.yabaiConfig.leftPadding) },
-                            set: {
-                                service.yabaiConfig.leftPadding = Int($0)
-                                service.yabaiConfig.rightPadding = Int($0)
-                            }
-                        ), in: 0...50, step: 1)
-                    }
-                }
-            }
-
-            Section(header: Text("Window Appearance & Styling").font(.headline)) {
-                Picker("Window Shadows", selection: $service.yabaiConfig.windowShadow) {
-                    ForEach(WindowShadowMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Insertion Feedback Color:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Circle()
-                            .fill(Color(hexARGB: service.yabaiConfig.insertFeedbackColor))
-                            .frame(width: 14, height: 14)
-                        Text(service.yabaiConfig.insertFeedbackColor)
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack(spacing: 6) {
-                        Text("Presets:").font(.caption2).foregroundStyle(.secondary)
-                        feedbackColorPreset(name: "Neon Green", hex: "0xff50fa7b")
-                        feedbackColorPreset(name: "Cyan", hex: "0xff8be9fd")
-                        feedbackColorPreset(name: "Purple", hex: "0xffbd93f9")
-                        feedbackColorPreset(name: "Gold", hex: "0xfff1fa8c")
-                        feedbackColorPreset(name: "Coral", hex: "0xffff5555")
-                    }
-                }
-            }
-
-            Section(header: Text("Window Opacity & Focus Dimming").font(.headline)) {
-                Toggle("Enable Inactive Window Dimming", isOn: $service.yabaiConfig.windowOpacity)
-
-                if service.yabaiConfig.windowOpacity {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Active Window Opacity: \(Int(service.yabaiConfig.activeOpacity * 100))%")
-                                .frame(width: 200, alignment: .leading)
-                            Slider(value: $service.yabaiConfig.activeOpacity, in: 0.5...1.0, step: 0.05)
+                            Text("Window Gap: \(service.yabaiConfig.windowGap)px")
+                                .frame(width: 150, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(service.yabaiConfig.windowGap) },
+                                set: { service.yabaiConfig.windowGap = Int($0) }
+                            ), in: 0...40, step: 1)
                         }
 
                         HStack {
-                            Text("Inactive Window Opacity: \(Int(service.yabaiConfig.normalOpacity * 100))%")
-                                .frame(width: 200, alignment: .leading)
-                            Slider(value: $service.yabaiConfig.normalOpacity, in: 0.4...1.0, step: 0.05)
+                            Text("Top Margin: \(service.yabaiConfig.topPadding)px")
+                                .frame(width: 150, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(service.yabaiConfig.topPadding) },
+                                set: { service.yabaiConfig.topPadding = Int($0) }
+                            ), in: 0...50, step: 1)
                         }
 
                         HStack {
-                            Text("Transition Duration: \(String(format: "%.2f", service.yabaiConfig.windowOpacityDuration))s")
-                                .frame(width: 200, alignment: .leading)
-                            Slider(value: $service.yabaiConfig.windowOpacityDuration, in: 0.0...0.5, step: 0.05)
+                            Text("Bottom Margin: \(service.yabaiConfig.bottomPadding)px")
+                                .frame(width: 150, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(service.yabaiConfig.bottomPadding) },
+                                set: { service.yabaiConfig.bottomPadding = Int($0) }
+                            ), in: 0...50, step: 1)
                         }
 
-                        // Live visual preview
-                        HStack(spacing: 12) {
-                            VStack(spacing: 4) {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color(nsColor: .controlAccentColor))
-                                    .opacity(service.yabaiConfig.activeOpacity)
-                                    .frame(height: 48)
-                                    .overlay(
-                                        Text("Active Window")
-                                            .font(.caption2)
-                                            .fontWeight(.bold)
-                                            .foregroundStyle(.white)
-                                    )
-                                Text("Focused (\(Int(service.yabaiConfig.activeOpacity * 100))%)")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            VStack(spacing: 4) {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color(nsColor: .windowBackgroundColor))
-                                    .opacity(service.yabaiConfig.normalOpacity)
-                                    .frame(height: 48)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                                    )
-                                    .overlay(
-                                        Text("Inactive Window")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    )
-                                Text("Dimmed (\(Int(service.yabaiConfig.normalOpacity * 100))%)")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.secondary)
-                            }
+                        HStack {
+                            Text("Side Margins: \(service.yabaiConfig.leftPadding)px")
+                                .frame(width: 150, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(service.yabaiConfig.leftPadding) },
+                                set: {
+                                    service.yabaiConfig.leftPadding = Int($0)
+                                    service.yabaiConfig.rightPadding = Int($0)
+                                }
+                            ), in: 0...50, step: 1)
                         }
-                        .padding(8)
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 2: Window Appearance & Styling
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Window Appearance & Styling").font(.headline)
+
+                    Picker("Window Shadows", selection: $service.yabaiConfig.windowShadow) {
+                        ForEach(WindowShadowMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Insertion Feedback Color:")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Circle()
+                                .fill(Color(hexARGB: service.yabaiConfig.insertFeedbackColor))
+                                .frame(width: 14, height: 14)
+                            Text(service.yabaiConfig.insertFeedbackColor)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack(spacing: 6) {
+                            Text("Presets:").font(.caption2).foregroundStyle(.secondary)
+                            feedbackColorPreset(name: "Neon Green", hex: "0xff50fa7b")
+                            feedbackColorPreset(name: "Cyan", hex: "0xff8be9fd")
+                            feedbackColorPreset(name: "Purple", hex: "0xffbd93f9")
+                            feedbackColorPreset(name: "Gold", hex: "0xfff1fa8c")
+                            feedbackColorPreset(name: "Coral", hex: "0xffff5555")
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Section 3: Window Opacity & Focus Dimming
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Window Opacity & Focus Dimming").font(.headline)
+
+                    Toggle("Enable Inactive Window Dimming", isOn: $service.yabaiConfig.windowOpacity)
+
+                    if service.yabaiConfig.windowOpacity {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("Active Window Opacity: \(Int(service.yabaiConfig.activeOpacity * 100))%")
+                                    .frame(width: 200, alignment: .leading)
+                                Slider(value: $service.yabaiConfig.activeOpacity, in: 0.5...1.0, step: 0.05)
+                            }
+
+                            HStack {
+                                Text("Inactive Window Opacity: \(Int(service.yabaiConfig.normalOpacity * 100))%")
+                                    .frame(width: 200, alignment: .leading)
+                                Slider(value: $service.yabaiConfig.normalOpacity, in: 0.4...1.0, step: 0.05)
+                            }
+
+                            HStack {
+                                Text("Transition Duration: \(String(format: "%.2f", service.yabaiConfig.windowOpacityDuration))s")
+                                    .frame(width: 200, alignment: .leading)
+                                Slider(value: $service.yabaiConfig.windowOpacityDuration, in: 0.0...0.5, step: 0.05)
+                            }
+
+                            // Live visual preview
+                            HStack(spacing: 12) {
+                                VStack(spacing: 4) {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color(nsColor: .controlAccentColor))
+                                        .opacity(service.yabaiConfig.activeOpacity)
+                                        .frame(height: 48)
+                                        .overlay(
+                                            Text("Active Window")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.white)
+                                        )
+                                    Text("Focused (\(Int(service.yabaiConfig.activeOpacity * 100))%)")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                VStack(spacing: 4) {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color(nsColor: .windowBackgroundColor))
+                                        .opacity(service.yabaiConfig.normalOpacity)
+                                        .frame(height: 48)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .overlay(
+                                            Text("Inactive Window")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        )
+                                    Text("Dimmed (\(Int(service.yabaiConfig.normalOpacity * 100))%)")
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(8)
+                            .background(Color(nsColor: .controlBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                saveButton
             }
-
-            Spacer()
-
-            saveButton
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
         }
     }
 
@@ -424,11 +473,13 @@ public struct SettingsView: View {
                     .padding(.bottom, bottomPad)
                     .padding(.leading, leftPad)
                     .padding(.trailing, rightPad)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.windowGap)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.topPadding)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.bottomPadding)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.leftPadding)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: service.yabaiConfig.rightPadding)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: [
+                        service.yabaiConfig.windowGap,
+                        service.yabaiConfig.topPadding,
+                        service.yabaiConfig.bottomPadding,
+                        service.yabaiConfig.leftPadding,
+                        service.yabaiConfig.rightPadding
+                    ])
                 }
             }
             .frame(height: 120)
