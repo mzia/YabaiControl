@@ -1118,4 +1118,30 @@ struct DisplayTuningTests {
     }
 }
 
+@Suite("Settings View and Navigation Tests")
+struct SettingsViewAndNavigationTests {
+    @Test("Selected tab accepts valid tab index values from 0 through 6")
+    @MainActor
+    func testSelectedTabIndices() {
+        let service = YabaiService.shared
+        for tabIndex in 0...6 {
+            service.selectedTab = tabIndex
+            #expect(service.selectedTab == tabIndex)
+        }
+    }
+
+    @Test("SettingsView can be initialized cleanly")
+    @MainActor
+    func testSettingsViewInstantiation() {
+        let service = YabaiService.shared
+        for tabIndex in 0...6 {
+            service.selectedTab = tabIndex
+            let settingsView = SettingsView()
+            _ = settingsView
+            #expect(service.selectedTab == tabIndex)
+        }
+    }
+}
+
+
 
